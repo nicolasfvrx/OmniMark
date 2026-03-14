@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OmniMark",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Nicolas",
   "license": "MIT",
   "description": "Votre page de démarrage personnalisée, synchronisée et dotée de raccourcis de recherche puissants.",
