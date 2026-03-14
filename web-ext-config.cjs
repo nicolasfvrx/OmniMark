@@ -4,10 +4,6 @@ module.exports = {
   build: {
     overwriteDest: true,
   },
-  sign: {
-    channel: "listed",
-    license: "MIT",
-  },
   ignoreFiles: [
     ".github",
     ".idea",
