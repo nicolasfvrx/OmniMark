@@ -1,0 +1,218 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: consolas, sans-serif;
+}
+
+:root {
+  --bg-color: #031321;
+  --primary-color: #2196f3;
+  --secondary-color: #255784;
+}
+
+body {
+  background: var(--bg-color);
+  padding-bottom: 40px; /* Espace pour la barre du bas */
+  /*
+    display: flex;
+    justify-content: center;
+    background: var(--bg-color);
+      */
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+
+  padding: 5px 5px;
+  color: var(--primary-color);
+  /*text-transform: uppercase;*/
+  letter-spacing: 0px;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+h2 {
+  padding: 5px 5px;
+  color: var(--secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 10px;
+  text-decoration: none;
+  font-size: 16px;
+}
+h3 {
+  padding: 5px 0px;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 5px;
+  text-decoration: none;
+  font-size: 16px;
+}
+p {
+  /*
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  word-spacing: 0px;
+  color: #000000;
+  font-weight: normal;
+  text-decoration: none;
+  font-style: normal;
+  font-variant: normal;
+  text-transform: none;
+  */
+}
+
+/* unvisited link */
+a:link {
+  color: green;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+/* visited link */
+a:visited {
+  color: green;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+/* mouse over link */
+a:hover {
+  color: white;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+/* selected link */
+a:active {
+  color: yellow;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+.link-icon {
+    padding-right: 8px;
+    vertical-align: middle;
+}
+
+.link-icon img {
+    vertical-align: middle;
+    margin-top: -2px;
+}
+
+/* Styles pour la barre de recherche */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+}
+
+.header-left, .header-right {
+    flex: 1;
+}
+
+.header-center {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+}
+
+.header-right {
+    text-align: right;
+}
+
+.settings-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 20px;
+}
+
+.search-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px; /* Plus large comme demandé */
+}
+
+#search-input {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--secondary-color);
+    color: var(--primary-color);
+    padding: 5px 10px;
+    font-family: inherit;
+    border-radius: 4px;
+    outline: none;
+    font-size: 14px;
+}
+
+#search-input:focus {
+    border-color: var(--primary-color);
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--bg-color);
+    border: 1px solid var(--secondary-color);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    margin-top: 5px;
+    border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.search-dropdown a {
+    display: block;
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 15px;
+    color: white;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.search-dropdown a:hover {
+    background: rgba(33, 150, 243, 0.15);
+}
+
+.search-dropdown a.external-search {
+    border-left: 3px solid var(--primary-color);
+    background: rgba(33, 150, 243, 0.08);
+}
+
+.search-dropdown .category-label {
+    font-size: 11px;
+    color: var(--primary-color);
+    opacity: 0.8;
+    display: block;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
+#status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--bg-color);
+    border-top: 1px solid var(--secondary-color);
+    padding: 5px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--primary-color);
+    z-index: 2000;
+}
+
+.footer-item {
+    font-family: inherit;
+}

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniMark</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+        </div>
+        <div class="header-center">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Rechercher..." autocomplete="off">
+                <div id="search-results" class="search-dropdown"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <a href="options.html" class="settings-link">&#9881;</a>
+        </div>
+    </header>
+    <section class="grid" id="bookmark-grid">
+        <!-- Les catégories dynamiques seront insérées ici -->
+    </section>
+
+    <footer id="status-bar">
+        <div id="footer-date" class="footer-item"></div>
+        <div id="footer-time" class="footer-item"></div>
+    </footer>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
