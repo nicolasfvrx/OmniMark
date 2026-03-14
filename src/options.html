@@ -18,11 +18,21 @@
         .move-btn:hover { background: var(--primary-color); }
         .btn-group { display: flex; align-items: center; }
         .category-list { margin-top: 30px; }
-        .cat-item { margin-bottom: 15px; border-left: 3px solid var(--primary-color); padding-left: 15px; }
-        .link-item { margin-left: 20px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; background: rgba(255, 255, 255, 0.02); padding: 5px; border-radius: 4px; }
+        .cat-item { 
+            margin-bottom: 25px; 
+            padding: 15px; 
+            background: rgba(255, 255, 255, 0.03); 
+            border-radius: 8px; 
+            border: 1px solid var(--secondary-color);
+            transition: border-color 0.3s;
+        }
+        .cat-item:hover { border-color: var(--primary-color); }
+        .cat-item strong { color: var(--primary-color); font-size: 16px; display: flex; align-items: center; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .link-item { margin-left: 20px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; background: rgba(255, 255, 255, 0.03); padding: 8px; border-radius: 4px; color: #e0e0e0; }
+        .link-item small { color: #888; margin-left: 10px; font-family: consolas, monospace; }
         .icon-config { display: flex; gap: 10px; width: 100%; margin-top: 5px; }
         .icon-config select, .icon-config input { font-size: 12px; margin-bottom: 0; }
-        h1 { margin-bottom: 30px; color: var(--primary-color); letter-spacing: 5px; }
+        h1 { margin-bottom: 30px; color: var(--primary-color); letter-spacing: 2px; }
 
         /* Styles pour les onglets */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; }
@@ -34,8 +44,8 @@
         
         .search-engine-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: rgba(255, 255, 255, 0.02); padding: 10px; border-radius: 4px; border-left: 3px solid var(--primary-color); }
         .engine-info { flex: 1; font-size: 14px; }
-        .engine-info strong { color: var(--primary-color); margin-right: 10px; }
-        .engine-info small { color: var(--secondary-color); }
+        .engine-info strong { color: white; margin-right: 10px; }
+        .engine-info small { color: #888; }
 
         .back-link {
             text-decoration: none;
@@ -161,6 +171,12 @@
                     <div id="system-bookmark-results" style="display: none;"></div>
                 </div>
 
+                <div class="settings-group" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed var(--secondary-color);">
+                    <label for="logodev-token">Clé API Logo.dev (facultatif si non utilisé)</label>
+                    <input type="password" id="logodev-token" placeholder="VOTRE_CLE">
+                    <small style="color: var(--secondary-color); font-size: 11px;">Nécessaire si vous utilisez le type d'icône Logo.dev</small>
+                </div>
+
                 <h3>Ajouter un Lien</h3>
                 <label for="link-cat-select">Catégorie</label>
                 <select id="link-cat-select"></select>
@@ -173,10 +189,21 @@
                 <select id="link-icon-type">
                     <option value="favicon">Favicon (Auto)</option>
                     <option value="emoji">Emoji / Texte</option>
+                    <option value="simpleicons">Simple Icons (slug)</option>
+                    <option value="logodev">Logo.dev (domaine)</option>
                     <option value="custom">URL Image / SVG</option>
                 </select>
-                <label for="link-icon-value">Valeur de l'icône (Emoji ou URL)</label>
-                <input type="text" id="link-icon-value" placeholder="⭐ ou https://...">
+                
+                <div id="logodev-theme-container" style="display: none;">
+                    <label for="link-icon-theme">Thème Logo.dev</label>
+                    <select id="link-icon-theme">
+                        <option value="light">Clair (Light)</option>
+                        <option value="dark" selected>Sombre (Dark)</option>
+                    </select>
+                </div>
+
+                <label for="link-icon-value">Valeur de l'icône (Emoji, slug, domaine ou URL)</label>
+                <input type="text" id="link-icon-value" placeholder="⭐, github, google.com ou https://...">
                 
                 <button id="add-link">Ajouter le lien</button>
             </div>

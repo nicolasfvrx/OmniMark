@@ -13,6 +13,7 @@
 
 body {
   background: var(--bg-color);
+  color: #e0e0e0;
   padding-bottom: 40px; /* Espace pour la barre du bas */
   /*
     display: flex;
@@ -23,16 +24,11 @@ body {
 
 .grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-
-  padding: 5px 5px;
-  color: var(--primary-color);
-  /*text-transform: uppercase;*/
-  letter-spacing: 0px;
-  text-decoration: none;
-  font-size: 16px;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  padding: 20px;
 }
+
 
 h2 {
   padding: 5px 5px;
@@ -46,7 +42,7 @@ h3 {
   padding: 5px 0px;
   color: var(--primary-color);
   text-transform: uppercase;
-  letter-spacing: 5px;
+  letter-spacing: 2px;
   text-decoration: none;
   font-size: 16px;
 }
@@ -67,14 +63,14 @@ p {
 
 /* unvisited link */
 a:link {
-  color: green;
+  color: #4caf50;
   background-color: transparent;
   text-decoration: none;
 }
 
 /* visited link */
 a:visited {
-  color: green;
+  color: #4caf50;
   background-color: transparent;
   text-decoration: none;
 }

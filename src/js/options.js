@@ -21,16 +21,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const systemSearchContainer = document.getElementById('system-bookmark-search');
     const systemSearchInput = document.getElementById('system-search-input');
     const systemSearchResults = document.getElementById('system-bookmark-results');
+    const logodevToken = document.getElementById('logodev-token');
     const linkTitleInput = document.getElementById('link-title');
     const linkUrlInput = document.getElementById('link-url');
+    const linkIconType = document.getElementById('link-icon-type');
+    const logoDevThemeContainer = document.getElementById('logodev-theme-container');
+    const linkIconTheme = document.getElementById('link-icon-theme');
 
-    async function initSystemSearch() {
+    async function initSettings() {
         const result = await browser.storage.sync.get('settings');
         const settings = result.settings || {};
         
         if (settings.enableSystemSearch) {
             enableSystemSearch.checked = true;
             systemSearchContainer.style.display = 'block';
+        }
+
+        if (settings.logoDevToken) {
+            logodevToken.value = settings.logoDevToken;
         }
 
         enableSystemSearch.onchange = async () => {
@@ -40,6 +48,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await browser.storage.sync.get('settings');
             const s = res.settings || {};
             s.enableSystemSearch = isEnabled;
+            await browser.storage.sync.set({ settings: s });
+        };
+
+        logodevToken.onchange = async () => {
+            const token = logodevToken.value.trim();
+            const res = await browser.storage.sync.get('settings');
+            const s = res.settings || {};
+            s.logoDevToken = token;
             await browser.storage.sync.set({ settings: s });
         };
 
@@ -66,7 +82,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     bookmarks.slice(0, 10).forEach(b => {
                         const div = document.createElement('div');
                         div.className = 'system-bookmark-item';
-                        div.innerHTML = `<strong>${b.title || '(Sans nom)'}</strong><small>${b.url}</small>`;
+                        const strong = document.createElement('strong');
+                        strong.textContent = b.title || '(Sans nom)';
+                        const small = document.createElement('small');
+                        small.textContent = b.url;
+                        div.appendChild(strong);
+                        div.appendChild(small);
                         div.onclick = () => {
                             linkUrlInput.value = b.url;
                             if (b.title) {
@@ -100,6 +121,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 systemSearchResults.style.display = 'none';
             }
         });
+
+        linkIconType.onchange = () => {
+            logoDevThemeContainer.style.display = linkIconType.value === 'logodev' ? 'block' : 'none';
+        };
     }
 
     const defaultEngines = {
@@ -110,10 +135,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         'd:': { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=', icon: '🦆' }
     };
 
+    // Configuration par défaut (si le stockage est vide)
+    const defaultBookmarks = [
+        {
+            name: "Outils",
+            column: 1,
+            links: [
+                { title: "Google", url: "https://www.google.com", iconType: "favicon", iconValue: "" },
+                { title: "GitHub", url: "https://github.com", iconType: "simpleicons", iconValue: "github" },
+                { title: "ChatGPT", url: "https://chatgpt.com", iconType: "simpleicons", iconValue: "openai" }
+            ]
+        },
+        {
+            name: "Loisirs",
+            column: 2,
+            links: [
+                { title: "YouTube", url: "https://www.youtube.com", iconType: "favicon", iconValue: "" },
+                { title: "Reddit", url: "https://www.reddit.com", iconType: "simpleicons", iconValue: "reddit" },
+                { title: "Twitch", url: "https://www.twitch.tv", iconType: "simpleicons", iconValue: "twitch" }
+            ]
+        }
+    ];
+
     // Charger les données
     async function loadData() {
         const result = await browser.storage.sync.get(['bookmarkData', 'searchEngines']);
-        const data = result.bookmarkData || [];
+        let data = result.bookmarkData;
+        
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+            data = JSON.parse(JSON.stringify(defaultBookmarks));
+        }
+
         const engines = result.searchEngines || defaultEngines;
         
         renderList(data);
@@ -127,14 +179,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             const engine = engines[prefix];
             const div = document.createElement('div');
             div.className = 'search-engine-item';
-            div.innerHTML = `
-                <div class="engine-info">
-                    <strong>${prefix}</strong>
-                    <span>${engine.icon} ${engine.name}</span>
-                    <br><small>${engine.url}</small>
-                </div>
-                <button class="delete-btn" data-prefix="${prefix}">Supprimer</button>
-            `;
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'engine-info';
+            
+            const strong = document.createElement('strong');
+            strong.textContent = prefix;
+            
+            const span = document.createElement('span');
+            span.textContent = ` ${engine.icon} ${engine.name}`;
+            
+            const br = document.createElement('br');
+            const small = document.createElement('small');
+            small.textContent = engine.url;
+            
+            infoDiv.appendChild(strong);
+            infoDiv.appendChild(span);
+            infoDiv.appendChild(br);
+            infoDiv.appendChild(small);
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.dataset.prefix = prefix;
+            delBtn.textContent = 'Supprimer';
+            
+            div.appendChild(infoDiv);
+            div.appendChild(delBtn);
             searchEnginesList.appendChild(div);
         }
 
@@ -177,40 +246,174 @@ document.addEventListener('DOMContentLoaded', async () => {
         data.forEach((cat, catIdx) => {
             const catDiv = document.createElement('div');
             catDiv.className = 'cat-item';
-            catDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <strong>${cat.name} (Colonne: <input type="number" class="col-change" data-cat-idx="${catIdx}" value="${cat.column || 1}" style="width: 50px; display: inline; margin: 0 5px;">)</strong>
-                    <div class="btn-group">
-                        <button class="move-btn" data-move="up" data-cat-idx="${catIdx}">↑</button>
-                        <button class="move-btn" data-move="down" data-cat-idx="${catIdx}">↓</button>
-                        <button class="delete-btn" data-cat-idx="${catIdx}">Supprimer la catégorie</button>
-                    </div>
-                </div>
-            `;
+            const headerDiv = document.createElement('div');
+            headerDiv.style.display = 'flex';
+            headerDiv.style.justifyContent = 'space-between';
+            headerDiv.style.alignItems = 'center';
+            
+            const strong = document.createElement('strong');
+            strong.textContent = `${cat.name} (Colonne: `;
+            
+            const colInput = document.createElement('input');
+            colInput.type = 'number';
+            colInput.className = 'col-change';
+            colInput.dataset.catIdx = catIdx;
+            colInput.value = cat.column || 1;
+            colInput.style.width = '50px';
+            colInput.style.display = 'inline';
+            colInput.style.margin = '0 5px';
+            
+            strong.appendChild(colInput);
+            strong.appendChild(document.createTextNode(')'));
+            
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'btn-group';
+            
+            const upBtn = document.createElement('button');
+            upBtn.className = 'move-btn';
+            upBtn.dataset.move = 'up';
+            upBtn.dataset.catIdx = catIdx;
+            upBtn.textContent = '↑';
+            
+            const downBtn = document.createElement('button');
+            downBtn.className = 'move-btn';
+            downBtn.dataset.move = 'down';
+            downBtn.dataset.catIdx = catIdx;
+            downBtn.textContent = '↓';
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.dataset.catIdx = catIdx;
+            delBtn.textContent = 'Supprimer la catégorie';
+            
+            btnGroup.appendChild(upBtn);
+            btnGroup.appendChild(downBtn);
+            btnGroup.appendChild(delBtn);
+            
+            headerDiv.appendChild(strong);
+            headerDiv.appendChild(btnGroup);
+            
+            catDiv.appendChild(headerDiv);
 
             cat.links.forEach((link, linkIdx) => {
                 const linkDiv = document.createElement('div');
                 linkDiv.className = 'link-item';
                 linkDiv.style.flexDirection = 'column';
                 linkDiv.style.alignItems = 'flex-start';
-                linkDiv.innerHTML = `
-                    <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-                        <span>${link.title} - <small>${link.url}</small></span>
-                        <div class="btn-group">
-                            <button class="move-btn" data-move="up" data-cat-idx="${catIdx}" data-link-idx="${linkIdx}">↑</button>
-                            <button class="move-btn" data-move="down" data-cat-idx="${catIdx}" data-link-idx="${linkIdx}">↓</button>
-                            <button class="delete-btn" data-cat-idx="${catIdx}" data-link-idx="${linkIdx}">X</button>
-                        </div>
-                    </div>
-                    <div class="icon-config">
-                        <select class="link-icon-type-change" data-cat-idx="${catIdx}" data-link-idx="${linkIdx}">
-                            <option value="favicon" ${link.iconType === 'favicon' ? 'selected' : ''}>Favicon</option>
-                            <option value="emoji" ${link.iconType === 'emoji' ? 'selected' : ''}>Emoji</option>
-                            <option value="custom" ${link.iconType === 'custom' ? 'selected' : ''}>Custom</option>
-                        </select>
-                        <input type="text" class="link-icon-value-change" data-cat-idx="${catIdx}" data-link-idx="${linkIdx}" value="${link.iconValue || ''}" placeholder="Emoji ou URL">
-                    </div>
-                `;
+                const topDiv = document.createElement('div');
+                topDiv.style.width = '100%';
+                topDiv.style.display = 'flex';
+                topDiv.style.justifyContent = 'space-between';
+                topDiv.style.alignItems = 'center';
+                
+                const span = document.createElement('span');
+                span.textContent = `${link.title} - `;
+                const small = document.createElement('small');
+                small.textContent = link.url;
+                span.appendChild(small);
+                
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'btn-group';
+                
+                const upBtn = document.createElement('button');
+                upBtn.className = 'move-btn';
+                upBtn.dataset.move = 'up';
+                upBtn.dataset.catIdx = catIdx;
+                upBtn.dataset.linkIdx = linkIdx;
+                upBtn.textContent = '↑';
+                
+                const downBtn = document.createElement('button');
+                downBtn.className = 'move-btn';
+                downBtn.dataset.move = 'down';
+                downBtn.dataset.catIdx = catIdx;
+                downBtn.dataset.linkIdx = linkIdx;
+                downBtn.textContent = '↓';
+                
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.dataset.catIdx = catIdx;
+                delBtn.dataset.linkIdx = linkIdx;
+                delBtn.textContent = 'X';
+                
+                btnGroup.appendChild(upBtn);
+                btnGroup.appendChild(downBtn);
+                btnGroup.appendChild(delBtn);
+                
+                topDiv.appendChild(span);
+                topDiv.appendChild(btnGroup);
+                
+                const iconConfig = document.createElement('div');
+                iconConfig.className = 'icon-config';
+                iconConfig.style.flexDirection = 'column';
+                iconConfig.style.gap = '5px';
+                
+                const mainConfig = document.createElement('div');
+                mainConfig.style.display = 'flex';
+                mainConfig.style.gap = '10px';
+                mainConfig.style.width = '100%';
+
+                const select = document.createElement('select');
+                select.className = 'link-icon-type-change';
+                select.dataset.catIdx = catIdx;
+                select.dataset.linkIdx = linkIdx;
+                
+                ['favicon', 'emoji', 'simpleicons', 'logodev', 'custom'].forEach(type => {
+                    const opt = document.createElement('option');
+                    opt.value = type;
+                    let label = type.charAt(0).toUpperCase() + type.slice(1);
+                    if (type === 'simpleicons') label = 'Simple Icons';
+                    if (type === 'logodev') label = 'Logo.dev';
+                    opt.textContent = label;
+                    if (link.iconType === type) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'link-icon-value-change';
+                input.dataset.catIdx = catIdx;
+                input.dataset.linkIdx = linkIdx;
+                input.value = link.iconValue || '';
+                input.placeholder = 'Emoji, slug, domaine ou URL';
+                
+                mainConfig.appendChild(select);
+                mainConfig.appendChild(input);
+                iconConfig.appendChild(mainConfig);
+
+                if (link.iconType === 'logodev') {
+                    const themeDiv = document.createElement('div');
+                    themeDiv.style.display = 'flex';
+                    themeDiv.style.alignItems = 'center';
+                    themeDiv.style.gap = '10px';
+                    themeDiv.style.width = '100%';
+                    themeDiv.style.fontSize = '12px';
+
+                    const themeLabel = document.createElement('span');
+                    themeLabel.textContent = 'Thème :';
+                    themeLabel.style.color = 'var(--secondary-color)';
+
+                    const themeSelect = document.createElement('select');
+                    themeSelect.className = 'link-icon-theme-change';
+                    themeSelect.dataset.catIdx = catIdx;
+                    themeSelect.dataset.linkIdx = linkIdx;
+                    themeSelect.style.width = 'auto';
+                    themeSelect.style.padding = '4px';
+
+                    [{val: 'light', label: 'Clair'}, {val: 'dark', label: 'Sombre'}].forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.val;
+                        opt.textContent = t.label;
+                        if (link.iconTheme === t.val || (!link.iconTheme && t.val === 'dark')) opt.selected = true;
+                        themeSelect.appendChild(opt);
+                    });
+
+                    themeDiv.appendChild(themeLabel);
+                    themeDiv.appendChild(themeSelect);
+                    iconConfig.appendChild(themeDiv);
+                }
+                
+                linkDiv.appendChild(topDiv);
+                linkDiv.appendChild(iconConfig);
                 catDiv.appendChild(linkDiv);
             });
             dataList.appendChild(catDiv);
@@ -277,6 +480,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const cIdx = parseInt(e.target.dataset.catIdx);
                 const lIdx = parseInt(e.target.dataset.linkIdx);
                 data[cIdx].links[lIdx].iconType = e.target.value;
+                if (e.target.value === 'logodev' && !data[cIdx].links[lIdx].iconTheme) {
+                    data[cIdx].links[lIdx].iconTheme = 'dark';
+                }
                 await browser.storage.sync.set({ bookmarkData: data });
                 loadData();
             };
@@ -287,6 +493,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const cIdx = parseInt(e.target.dataset.catIdx);
                 const lIdx = parseInt(e.target.dataset.linkIdx);
                 data[cIdx].links[lIdx].iconValue = e.target.value;
+                await browser.storage.sync.set({ bookmarkData: data });
+                loadData();
+            };
+        });
+
+        document.querySelectorAll('.link-icon-theme-change').forEach(select => {
+            select.onchange = async (e) => {
+                const cIdx = parseInt(e.target.dataset.catIdx);
+                const lIdx = parseInt(e.target.dataset.linkIdx);
+                data[cIdx].links[lIdx].iconTheme = e.target.value;
                 await browser.storage.sync.set({ bookmarkData: data });
                 loadData();
             };
@@ -308,7 +524,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const column = parseInt(document.getElementById('new-cat-column').value) || 1;
         if (!name) return;
         const result = await browser.storage.sync.get('bookmarkData');
-        const data = result.bookmarkData || [];
+        let data = result.bookmarkData;
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+            data = JSON.parse(JSON.stringify(defaultBookmarks));
+        }
         data.push({ name: name, column: column, links: [] });
         await browser.storage.sync.set({ bookmarkData: data });
         document.getElementById('new-cat-name').value = '';
@@ -322,19 +541,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const url = document.getElementById('link-url').value;
         const iconType = document.getElementById('link-icon-type').value;
         const iconValue = document.getElementById('link-icon-value').value;
+        const iconTheme = document.getElementById('link-icon-theme').value;
         if (catIdx === "" || !title || !url) return;
 
         const result = await browser.storage.sync.get('bookmarkData');
-        const data = result.bookmarkData || [];
-        data[catIdx].links.push({ title, url, iconType, iconValue });
+        let data = result.bookmarkData;
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+            data = JSON.parse(JSON.stringify(defaultBookmarks));
+        }
+        const newLink = { title, url, iconType, iconValue };
+        if (iconType === 'logodev') {
+            newLink.iconTheme = iconTheme;
+        }
+        data[catIdx].links.push(newLink);
         await browser.storage.sync.set({ bookmarkData: data });
         
         document.getElementById('link-title').value = '';
         document.getElementById('link-url').value = '';
         document.getElementById('link-icon-value').value = '';
+        logoDevThemeContainer.style.display = 'none';
+        document.getElementById('link-icon-type').value = 'favicon';
         loadData();
     };
 
-    initSystemSearch();
+    initSettings();
     loadData();
 });

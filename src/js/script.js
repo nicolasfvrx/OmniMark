@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const searchResults = document.getElementById('search-results');
     let allLinks = [];
     let searchEngines = {};
+    let settings = {};
 
     const defaultEngines = {
         'g:': { name: 'Google', url: 'https://www.google.com/search?q=', icon: '🔍' },
@@ -15,9 +16,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         'd:': { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=', icon: '🦆' }
     };
 
+    // Configuration par défaut (si le stockage est vide)
+    const defaultBookmarks = [
+        {
+            name: "Outils",
+            column: 1,
+            links: [
+                { title: "Google", url: "https://www.google.com", iconType: "favicon", iconValue: "" },
+                { title: "GitHub", url: "https://github.com", iconType: "simpleicons", iconValue: "github" },
+                { title: "ChatGPT", url: "https://chatgpt.com", iconType: "simpleicons", iconValue: "openai" }
+            ]
+        },
+        {
+            name: "Loisirs",
+            column: 2,
+            links: [
+                { title: "YouTube", url: "https://www.youtube.com", iconType: "favicon", iconValue: "" },
+                { title: "Reddit", url: "https://www.reddit.com", iconType: "simpleicons", iconValue: "reddit" },
+                { title: "Twitch", url: "https://www.twitch.tv", iconType: "simpleicons", iconValue: "twitch" }
+            ]
+        }
+    ];
+
     async function loadSearchEngines() {
-        const result = await browser.storage.sync.get('searchEngines');
+        const result = await browser.storage.sync.get(['searchEngines', 'settings']);
         searchEngines = result.searchEngines || defaultEngines;
+        settings = result.settings || {};
     }
 
     async function getFavicon(url) {
@@ -50,7 +74,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadDynamicBookmarks() {
         const result = await browser.storage.sync.get('bookmarkData');
-        const data = result.bookmarkData || [];
+        let data = result.bookmarkData;
+        
+        // Si aucune donnée n'est trouvée, utiliser les favoris par défaut
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+            data = defaultBookmarks;
+        }
+
         allLinks = [];
 
         // Grouper les catégories par colonne
@@ -67,13 +97,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sortedColKeys = Object.keys(columns).sort((a, b) => a - b);
 
         for (const colKey of sortedColKeys) {
-            const card = document.createElement('div');
-            card.className = 'card';
+            const colDiv = document.createElement('div');
+            // Pas de classe "card" ici pour respecter le choix de l'utilisateur (pas de style card sur index)
 
             for (const cat of columns[colKey]) {
                 const title = document.createElement('h3');
                 title.textContent = cat.name;
-                card.appendChild(title);
+                colDiv.appendChild(title);
 
                 for (const link of cat.links) {
                     allLinks.push({ ...link, categoryName: cat.name });
@@ -86,12 +116,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (link.iconType === 'emoji') {
                         iconContainer.textContent = link.iconValue || '⭐';
+                    } else if (link.iconType === 'simpleicons') {
+                        const img = document.createElement('img');
+                        img.src = `https://cdn.simpleicons.org/${link.iconValue || 'simpleicons'}`;
+                        img.alt = '';
+                        img.style.width = '14px';
+                        img.style.height = '14px';
+                        iconContainer.appendChild(img);
+                    } else if (link.iconType === 'logodev') {
+                        const img = document.createElement('img');
+                        let domain = link.iconValue;
+                        if (!domain && link.url) {
+                            try { domain = new URL(link.url).hostname; } catch (e) { domain = ''; }
+                        }
+                        const theme = link.iconTheme || 'dark';
+                        img.src = `https://img.logo.dev/${domain}?token=${settings.logoDevToken || ''}&theme=${theme}&format=webp&fallback=monogram`;
+                        img.alt = '';
+                        img.style.width = '14px';
+                        img.style.height = '14px';
+                        iconContainer.appendChild(img);
                     } else if (link.iconType === 'custom') {
                         const img = document.createElement('img');
                         img.src = link.iconValue;
                         img.alt = '';
-                        img.style.width = '16px';
-                        img.style.height = '16px';
+                        img.style.width = '14px';
+                        img.style.height = '14px';
                         iconContainer.appendChild(img);
                     } else {
                         // Default favicon
@@ -106,8 +155,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const img = document.createElement('img');
                         img.src = favSrc;
                         img.alt = '';
-                        img.style.width = '16px';
-                        img.style.height = '16px';
+                        img.style.width = '14px';
+                        img.style.height = '14px';
                         iconContainer.appendChild(img);
                     }
 
@@ -115,14 +164,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     a.appendChild(document.createTextNode(link.title));
 
                     p.appendChild(a);
-                    card.appendChild(p);
+                    colDiv.appendChild(p);
                 }
-
-                // Ajouter un espace entre les catégories dans la même carte
-                card.appendChild(document.createElement('br'));
             }
-
-            grid.appendChild(card);
+            grid.appendChild(colDiv);
         }
     }
 
@@ -205,6 +250,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     if (link.iconType === 'emoji') {
                         iconSpan.textContent = link.iconValue || '⭐';
+                    } else if (link.iconType === 'simpleicons') {
+                        const img = document.createElement('img');
+                        img.src = `https://cdn.simpleicons.org/${link.iconValue || 'simpleicons'}`;
+                        img.style.width = '16px';
+                        img.style.height = '16px';
+                        iconSpan.appendChild(img);
+                    } else if (link.iconType === 'logodev') {
+                        const img = document.createElement('img');
+                        let domain = link.iconValue;
+                        if (!domain && link.url) {
+                            try { domain = new URL(link.url).hostname; } catch (e) { domain = ''; }
+                        }
+                        const theme = link.iconTheme || 'dark';
+                        img.src = `https://img.logo.dev/${domain}?token=${settings.logoDevToken || ''}&theme=${theme}&format=webp&fallback=monogram`;
+                        img.style.width = '16px';
+                        img.style.height = '16px';
+                        iconSpan.appendChild(img);
                     } else if (link.iconType === 'custom') {
                         const img = document.createElement('img');
                         img.src = link.iconValue;

@@ -9,7 +9,11 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "omnimark@nicolas.projets"
+      "id": "omnimark@nicolas.projets",
+      "data_collection_permissions": {
+        "required": ["bookmarksInfo", "websiteContent"],
+        "optional": []
+      }
     }
   },
   "permissions": [
@@ -17,7 +21,9 @@
     "bookmarks"
   ],
   "host_permissions": [
-    "*://*.google.com/*"
+    "*://*.google.com/*",
+    "https://cdn.simpleicons.org/*",
+    "https://img.logo.dev/*"
   ],
   "options_ui": {
     "page": "src/options.html",
