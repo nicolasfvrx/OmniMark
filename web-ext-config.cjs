@@ -9,7 +9,7 @@ module.exports = {
     ".idea",
     "*.md",
     ".gitignore",
-    "web-ext-config.js",
+    "web-ext-config.cjs",
     "package-lock.json",
     "dist",
     "signed-dist"
