@@ -1,7 +1,9 @@
 {
   "manifest_version": 3,
   "name": "OmniMark",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "author": "Nicolas",
+  "license": "MIT",
   "description": "Votre page de démarrage personnalisée, synchronisée et dotée de raccourcis de recherche puissants.",
   "chrome_url_overrides": {
     "newtab": "src/index.html"
