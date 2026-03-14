@@ -3,5 +3,9 @@
   "version": "1.0.4",
   "description": "Votre page de démarrage personnalisée, synchronisée et dotée de raccourcis de recherche puissants.",
   "author": "Nicolas",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "build:chrome": "powershell -ExecutionPolicy Bypass -File scripts/build-chrome.ps1",
+    "package:chrome": "powershell -ExecutionPolicy Bypass -File scripts/package-chrome.ps1"
+  }
 }
