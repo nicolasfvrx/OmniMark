@@ -56,8 +56,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Migration de l'ancien format (string) vers le nouveau format (array)
         if (typeof channels === 'string') {
-            channels = channels.split(',').map(s => s.trim()).filter(s => s).map(id => ({ id, name: id }));
-            // On sauvegarde immédiatement la conversion
+            const ids = channels.split(',').map(s => s.trim()).filter(s => s);
+            const workerUrl = settings.youtubeWorkerUrl;
+            
+            // On convertit d'abord avec les IDs comme noms
+            channels = ids.map(id => ({ id, name: id }));
+            
+            // Tentative de récupération des noms réels si le worker est configuré
+            if (workerUrl && ids.length > 0) {
+                const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+                
+                // On fait ça en arrière-plan pour ne pas bloquer l'affichage initial
+                Promise.all(ids.map(async (id) => {
+                    try {
+                        const response = await fetch(`${cleanWorkerUrl}?id=${encodeURIComponent(id)}`);
+                        const data = await response.json();
+                        return { id, name: data.name || id };
+                    } catch (e) {
+                        return { id, name: id };
+                    }
+                })).then(async (newChannels) => {
+                    const res = await browser.storage.sync.get('settings');
+                    const s = res.settings || {};
+                    s.youtubeChannels = newChannels;
+                    await browser.storage.sync.set({ settings: s });
+                    renderYoutubeChannels(); // Re-render avec les vrais noms
+                });
+            }
+
+            // Sauvegarde immédiate de la structure de base
             settings.youtubeChannels = channels;
             await browser.storage.sync.set({ settings });
         }
@@ -198,16 +225,74 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         const addChannelBtn = document.getElementById('add-channel-btn');
+        const getChannelNameBtn = document.getElementById('get-channel-name-btn');
         const newChannelName = document.getElementById('new-channel-name');
         const newChannelId = document.getElementById('new-channel-id');
 
+        if (newChannelId) {
+            newChannelId.addEventListener('input', () => {
+                const val = newChannelId.value.trim();
+                // Extraction de l'ID si c'est une URL
+                const match = val.match(/(?:youtube\.com\/(?:channel\/|@))([a-zA-Z0-9_-]+)/);
+                if (match) {
+                    if (match[1].startsWith('UC')) {
+                        newChannelId.value = match[1];
+                        // Déclencher aussi la recherche de nom si le champ nom est vide
+                        if (!newChannelName.value && getChannelNameBtn) {
+                            getChannelNameBtn.click();
+                        }
+                    }
+                }
+            });
+        }
+
+        if (getChannelNameBtn) {
+            getChannelNameBtn.onclick = async () => {
+                const id = newChannelId.value.trim();
+                const workerUrl = youtubeWorkerUrl.value.trim();
+
+                if (!workerUrl) {
+                    alert('Veuillez d\'abord renseigner l\'URL de votre Cloudflare Worker.');
+                    return;
+                }
+                if (!id) {
+                    alert('Veuillez entrer l\'ID de la chaîne.');
+                    return;
+                }
+                if (!id.startsWith('UC')) {
+                    alert('L\'ID doit commencer par "UC".');
+                    return;
+                }
+
+                getChannelNameBtn.textContent = '...';
+                getChannelNameBtn.disabled = true;
+
+                try {
+                    const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+                    const response = await fetch(`${cleanWorkerUrl}?id=${encodeURIComponent(id)}`);
+                    const data = await response.json();
+
+                    if (data.name) {
+                        newChannelName.value = data.name;
+                    } else {
+                        alert('Nom non trouvé pour cet ID. Vérifiez l\'ID.');
+                    }
+                } catch (e) {
+                    alert('Erreur lors de la récupération du nom. Vérifiez l\'URL du worker.');
+                } finally {
+                    getChannelNameBtn.textContent = 'Récupérer le nom';
+                    getChannelNameBtn.disabled = false;
+                }
+            };
+        }
+
         if (addChannelBtn) {
             addChannelBtn.onclick = async () => {
-                const name = newChannelName.value.trim();
+                let name = newChannelName.value.trim();
                 const id = newChannelId.value.trim();
 
-                if (!name || !id) {
-                    alert('Veuillez renseigner le nom et l\'ID de la chaîne.');
+                if (!id) {
+                    alert('Veuillez renseigner l\'ID de la chaîne (UC...).');
                     return;
                 }
 
@@ -215,6 +300,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                     alert('L\'ID de chaîne YouTube doit commencer par "UC".');
                     return;
                 }
+
+                // Si le nom est vide, on tente de le récupérer automatiquement
+                if (!name) {
+                    const workerUrl = youtubeWorkerUrl.value.trim();
+                    if (workerUrl) {
+                        addChannelBtn.disabled = true;
+                        addChannelBtn.textContent = '...';
+                        try {
+                            const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+                            const response = await fetch(`${cleanWorkerUrl}?id=${encodeURIComponent(id)}`);
+                            const data = await response.json();
+                            if (data.name) {
+                                name = data.name;
+                            }
+                        } catch (e) {
+                            console.error("Erreur récupération nom auto:", e);
+                        } finally {
+                            addChannelBtn.disabled = false;
+                            addChannelBtn.textContent = 'Ajouter';
+                        }
+                    }
+                }
+
+                // Si toujours pas de nom, on utilise l'ID par défaut
+                if (!name) name = id;
 
                 const res = await browser.storage.sync.get('settings');
                 const s = res.settings || {};

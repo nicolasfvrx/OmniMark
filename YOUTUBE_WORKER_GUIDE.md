@@ -38,11 +38,20 @@ export default {
     const url = new URL(request.url);
     const channels = url.searchParams.get('channels');
     const handle = url.searchParams.get('handle');
+    const id = url.searchParams.get('id');
 
-    // Optionnel : Résoudre un handle (@username) en Channel ID
+    // Optionnel : Résoudre un handle (@username) en Channel ID et Nom
     if (handle) {
-      const channelId = await this.resolveHandle(handle);
-      return new Response(JSON.stringify({ channelId }), {
+      const data = await this.resolveHandle(handle);
+      return new Response(JSON.stringify(data), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
+    // Optionnel : Récupérer le nom d'une chaîne via son ID
+    if (id) {
+      const data = await this.resolveChannelNameById(id);
+      return new Response(JSON.stringify(data), {
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
     }
@@ -91,7 +100,8 @@ export default {
   async scheduled(event, env, ctx) {
     const channels = await env.YOUTUBE_KV.get('channel_list', { type: 'json' }) || [];
     for (const channelId of channels) {
-      await env.YOUTUBE_QUEUE.send({ channelId });
+      if (env.YOUTUBE_QUEUE) await env.YOUTUBE_QUEUE.send({ channelId });
+      else await this.fetchAndParseRSS(channelId); // Fallback sans Queue
     }
   },
 
@@ -111,14 +121,31 @@ export default {
     try {
       if (!handle.startsWith('@')) handle = '@' + handle;
       const response = await fetch(`https://www.youtube.com/${handle}`);
-      if (!response.ok) return null;
+      if (!response.ok) return { channelId: null, name: handle };
       const html = await response.text();
-      // On cherche l'ID de la chaîne dans le code source
-      const match = html.match(/"channelId":"(UC[a-zA-Z0-9_-]+)"/) || 
-                    html.match(/itemprop="identifier" content="(UC[a-zA-Z0-9_-]+)"/);
-      return match ? match[1] : null;
+      // On cherche l'ID et le Nom de la chaîne dans le code source
+      const idMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]+)"/) || 
+                      html.match(/itemprop="identifier" content="(UC[a-zA-Z0-9_-]+)"/);
+      const titleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
+      
+      return { 
+        channelId: idMatch ? idMatch[1] : null,
+        name: titleMatch ? titleMatch[1] : handle
+      };
     } catch (e) {
-      return null;
+      return { channelId: null, name: handle };
+    }
+  },
+
+  async resolveChannelNameById(id) {
+    try {
+      const response = await fetch(`https://www.youtube.com/channel/${id}`);
+      if (!response.ok) return { name: null };
+      const html = await response.text();
+      const titleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
+      return { name: titleMatch ? titleMatch[1] : null };
+    } catch (e) {
+      return { name: null };
     }
   },
 

@@ -1,35 +1,47 @@
-# Changelog - OmniMark
+# Journal des modifications - OmniMark
 
-All notable changes to this project will be documented in this file.
+Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
-## [1.1.0] - 2026-03-23
+## [1.2.0] - 2026-03-23
 
-### ✨ New Features
-- **Smart YouTube Widget**: Integration of a recent videos feed directly on the home page.
-- **Cloudflare Worker Relay**: Use of a personal worker for ultra-fast video retrieval via RSS, with KV cache and Queues support for regular updates.
-- **Anti-Shorts Filtering**: The widget automatically ignores YouTube Shorts to keep only long-form content.
-- **Watched Videos Management**: Ability to hide already watched videos with one click (local storage up to 200 videos).
-- **ID Search Tool**: Built-in system to find a YouTube channel ID simply from its handle (e.g., @YouTube).
-- **Segmented Import/Export**: Ability to save and restore bookmarks/search engines and YouTube configuration separately.
-- **Integrated Installation Guide**: Added a full help tab in the options including the Worker source code and Cloudflare configuration steps.
+### ✨ Nouvelles fonctionnalités
+- **Récupération automatique du nom** : Ajout de l'extraction automatique des IDs de chaîne à partir des URLs et récupération du nom en arrière-plan lors de la migration et de la saisie manuelle.
+- **Migration intelligente** : Les listes de chaînes YouTube existantes sont désormais automatiquement mises à jour avec les noms réels via le Cloudflare Worker.
+- **Récupération d'ID manuelle** : Ajout d'un bouton pour récupérer automatiquement le nom d'une chaîne YouTube à partir de son ID lors d'un ajout manuel.
 
-### 🎨 Interface Improvements
-- **Compact Layout**: YouTube widget changed to a single horizontal row with scrolling for minimal clutter.
-- **Flexible Positioning**: Option to place the widget at the top or bottom of bookmarks (bottom by default for seamless footer integration).
-- **"Neon Night" Design**: Adjusted styles, fonts, and margins for perfect visual consistency.
-- **Tab Optimization**: Shortened names and CSS adjustments to avoid wrapping to two lines in options.
-- **Flexbox Structure**: Overhaul of the main layout to ensure the widget "sticks" to the footer without parasitic white space.
-
-### 🔧 Technical Improvements
-- Migrated YouTube channel configuration from raw text to a list of structured objects (ID + Name).
-- Used `insertAdjacentElement` for robust and dynamic DOM positioning.
-- Reduced total thumbnail weight and optimized network requests.
-- Improved cache management in the Cloudflare Worker.
+### 🛡️ Sécurité
+- **Manipulation sécurisée du DOM** : Remplacement de toutes les utilisations d'`innerHTML` par des méthodes DOM sécurisées (`textContent`, `createElement`) pour répondre aux exigences de sécurité du Firefox Add-on Store.
 
 ---
 
-## [1.0.7] - Initial Consolidated Version
-- Bookmark management by categories.
-- Customizable search shortcuts.
-- Synchronization via `browser.storage.sync`.
-- Automatic icon support (Favicon, Simple Icons, Logo.dev).
+## [1.1.0] - 2026-03-23
+
+### ✨ Nouvelles fonctionnalités
+- **Widget YouTube intelligent** : Intégration d'un flux de vidéos récentes directement sur la page d'accueil.
+- **Relais Cloudflare Worker** : Utilisation d'un worker personnel pour une récupération ultra-rapide des vidéos via RSS, avec support du cache KV et des Queues pour des mises à jour régulières.
+- **Filtrage Anti-Shorts** : Le widget ignore automatiquement les YouTube Shorts pour ne garder que le contenu long format.
+- **Gestion des vidéos vues** : Possibilité de masquer les vidéos déjà regardées en un clic (stockage local jusqu'à 200 vidéos).
+- **Outil de recherche d'ID** : Système intégré pour trouver l'ID d'une chaîne YouTube simplement à partir de son handle (ex: @YouTube).
+- **Import/Export segmenté** : Possibilité de sauvegarder et restaurer les favoris/moteurs de recherche et la configuration YouTube séparément.
+- **Guide d'installation intégré** : Ajout d'un onglet d'aide complet dans les options incluant le code source du Worker et les étapes de configuration Cloudflare.
+
+### 🎨 Améliorations de l'interface
+- **Mise en page compacte** : Le widget YouTube est passé à une seule ligne horizontale avec défilement pour un encombrement minimal.
+- **Positionnement flexible** : Option pour placer le widget en haut ou en bas des favoris (bas par défaut pour une intégration fluide avec le footer).
+- **Design "Neon Night"** : Ajustement des styles, des polices et des marges pour une cohérence visuelle parfaite.
+- **Optimisation des onglets** : Noms raccourcis et ajustements CSS pour éviter le passage sur deux lignes dans les options.
+- **Structure Flexbox** : Refonte de la mise en page principale pour garantir que le widget "colle" au footer sans espace blanc parasite.
+
+### 🔧 Améliorations techniques
+- Migration de la configuration des chaînes YouTube d'un texte brut vers une liste d'objets structurés (ID + Nom).
+- Utilisation de `insertAdjacentElement` pour un positionnement DOM robuste et dynamique.
+- Réduction du poids total des vignettes et optimisation des requêtes réseau.
+- Amélioration de la gestion du cache dans le Cloudflare Worker.
+
+---
+
+## [1.0.7] - Version initiale consolidée
+- Gestion des favoris par catégories.
+- Raccourcis de recherche personnalisables.
+- Synchronisation via `browser.storage.sync`.
+- Support automatique des icônes (Favicon, Simple Icons, Logo.dev).

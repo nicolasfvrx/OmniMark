@@ -281,10 +281,15 @@
                     </div>
 
                     <label style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-top: 15px;">Ajout manuel</label>
-                    <div class="add-channel-manual" style="margin-top: 5px; margin-bottom: 20px; display: flex; gap: 5px;">
-                        <input type="text" id="new-channel-name" placeholder="Nom de la chaîne" style="flex: 1; margin-bottom: 0; font-size: 13px; height: 32px;">
-                        <input type="text" id="new-channel-id" placeholder="ID (UC...)" style="flex: 1; margin-bottom: 0; font-size: 13px; height: 32px;">
-                        <button id="add-channel-btn" style="width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Ajouter</button>
+                    <div class="add-channel-manual" style="margin-top: 5px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="new-channel-id" placeholder="ID (UC...)" style="flex: 1; margin-bottom: 0; font-size: 13px; height: 32px;">
+                            <button id="get-channel-name-btn" style="width: auto; padding: 0 12px; height: 32px; font-size: 11px; background: rgba(33, 150, 243, 0.1); border: 1px solid var(--primary-color); color: var(--primary-color);">Récupérer le nom</button>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="new-channel-name" placeholder="Nom de la chaîne" style="flex: 1; margin-bottom: 0; font-size: 13px; height: 32px;">
+                            <button id="add-channel-btn" style="width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Ajouter</button>
+                        </div>
                     </div>
 
                     <label for="youtube-position">Position du widget</label>
@@ -383,30 +388,47 @@
                     </div>
                     <pre id="worker-code-display" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 6px; border: 1px solid var(--secondary-color); color: #eee; font-family: 'Consolas', monospace; font-size: 12px; max-height: 400px; overflow: auto; white-space: pre-wrap;">
 export default {
+  // 1. Gérer les requêtes de l'extension
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const channels = url.searchParams.get('channels');
     const handle = url.searchParams.get('handle');
+    const id = url.searchParams.get('id');
 
+    // Optionnel : Résoudre un handle (@username) en Channel ID et Nom
     if (handle) {
-      const result = await this.resolveHandle(handle);
-      return new Response(JSON.stringify(result), {
+      const data = await this.resolveHandle(handle);
+      return new Response(JSON.stringify(data), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
+    // Optionnel : Récupérer le nom d'une chaîne via son ID
+    if (id) {
+      const data = await this.resolveChannelNameById(id);
+      return new Response(JSON.stringify(data), {
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
     }
 
     if (!channels) {
-      return new Response(JSON.stringify({ error: "No channels" }), { 
-        status: 400, headers: { "Access-Control-Allow-Origin": "*" } 
+      return new Response(JSON.stringify({ error: "No channels provided" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
     }
 
     const channelList = [...new Set(channels.split(',').map(s => s.trim()).filter(s => s))];
+    
+    // Mettre à jour la liste globale des chaînes pour le Cron (en arrière-plan)
     ctx.waitUntil(this.updateGlobalChannelList(channelList, env));
 
+    // Récupérer les vidéos depuis KV (en parallèle pour plus de rapidité)
     const videoPromises = channelList.map(async (channelId) => {
       const cached = await env.YOUTUBE_KV.get(`videos_${channelId}`, { type: 'json' });
       if (cached) return cached;
+
+      // Si pas en cache, on récupère immédiatement et on cache
       const videos = await this.fetchAndParseRSS(channelId);
       if (videos.length > 0) {
         await env.YOUTUBE_KV.put(`videos_${channelId}`, JSON.stringify(videos), { expirationTtl: 3600 });
@@ -415,14 +437,21 @@ export default {
     });
 
     const results = await Promise.all(videoPromises);
+    // Prendre la seule vidéo retournée par chaque flux RSS (filtrée des shorts)
     let latestVideos = results.flat().filter(v => v);
+
+    // Trier par date de publication (plus récent en premier)
     latestVideos.sort((a, b) => new Date(b.published) - new Date(a.published));
 
     return new Response(JSON.stringify(latestVideos), {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   },
 
+  // 2. Déclencheur Cron : Envoyer les chaînes à la Queue pour mise à jour
   async scheduled(event, env, ctx) {
     const channels = await env.YOUTUBE_KV.get('channel_list', { type: 'json' }) || [];
     for (const channelId of channels) {
@@ -431,6 +460,7 @@ export default {
     }
   },
 
+  // 3. Consommateur de Queue : Mettre à jour les données RSS
   async queue(batch, env) {
     for (const message of batch.messages) {
       const { channelId } = message.body;
@@ -441,15 +471,37 @@ export default {
     }
   },
 
+  // Utilitaires
   async resolveHandle(handle) {
-    if (!handle.startsWith('@')) handle = '@' + handle;
-    const response = await fetch(`https://www.youtube.com/${handle}`);
-    if (!response.ok) return null;
-    const html = await response.text();
-    const idMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]+)"/) || 
-                  html.match(/itemprop="identifier" content="(UC[a-zA-Z0-9_-]+)"/);
-    const ogTitle = html.match(/property="og:title" content="([^"]+)"/);
-    return idMatch ? { channelId: idMatch[1], name: ogTitle ? ogTitle[1] : handle } : null;
+    try {
+      if (!handle.startsWith('@')) handle = '@' + handle;
+      const response = await fetch(`https://www.youtube.com/${handle}`);
+      if (!response.ok) return { channelId: null, name: handle };
+      const html = await response.text();
+      // On cherche l'ID et le Nom de la chaîne dans le code source
+      const idMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]+)"/) || 
+                      html.match(/itemprop="identifier" content="(UC[a-zA-Z0-9_-]+)"/);
+      const titleMatch = html.match(/&lt;meta property="og:title" content="([^"]+)"&gt;/);
+      
+      return { 
+        channelId: idMatch ? idMatch[1] : null,
+        name: titleMatch ? titleMatch[1] : handle
+      };
+    } catch (e) {
+      return { channelId: null, name: handle };
+    }
+  },
+
+  async resolveChannelNameById(id) {
+    try {
+      const response = await fetch(`https://www.youtube.com/channel/${id}`);
+      if (!response.ok) return { name: null };
+      const html = await response.text();
+      const titleMatch = html.match(/&lt;meta property="og:title" content="([^"]+)"&gt;/);
+      return { name: titleMatch ? titleMatch[1] : null };
+    } catch (e) {
+      return { name: null };
+    }
   },
 
   async updateGlobalChannelList(channels, env) {
@@ -461,10 +513,18 @@ export default {
   },
 
   async isShort(videoId) {
-    const response = await fetch(`https://www.youtube.com/shorts/${videoId}`, {
-      method: 'HEAD', redirect: 'manual'
-    });
-    return response.status === 200;
+    try {
+      // Les YouTube Shorts ne redirigent pas quand on accède à /shorts/ID
+      // Les vidéos classiques redirigent vers /watch?v=ID
+      const response = await fetch(`https://www.youtube.com/shorts/${videoId}`, {
+        method: 'HEAD',
+        redirect: 'manual'
+      });
+      // Si status 200, c'est un Short. Si 302/301, c'est une vidéo classique.
+      return response.status === 200;
+    } catch (e) {
+      return false;
+    }
   },
 
   async fetchAndParseRSS(channelId) {
@@ -473,29 +533,45 @@ export default {
       const response = await fetch(rssUrl);
       if (!response.ok) return [];
       const xml = await response.text();
+
       const entries = xml.matchAll(/&lt;entry&gt;([\s\S]*?)&lt;\/entry&gt;/g);
       
       for (const match of entries) {
         const entry = match[1];
         const videoId = entry.match(/&lt;yt:videoId&gt;(.*?)&lt;\/yt:videoId&gt;/)?.[1];
         const title = entry.match(/&lt;title&gt;(.*?)&lt;\/title&gt;/)?.[1];
+        const link = entry.match(/&lt;link rel="alternate" href="(.*?)"\/&gt;/)?.[1];
         const author = entry.match(/&lt;name&gt;(.*?)&lt;\/name&gt;/)?.[1];
         const published = entry.match(/&lt;published&gt;(.*?)&lt;\/published&gt;/)?.[1];
 
         if (videoId && title) {
-          if (await this.isShort(videoId)) continue;
+          // Vérifier si c'est un Short
+          if (await this.isShort(videoId)) {
+            continue; // Passer au suivant si c'est un Short
+          }
+
+          // On retourne la première vidéo trouvée qui n'est pas un Short
           return [{
             id: videoId,
-            title: title.replace(/&amp;/g, '&').replace(/&lt;/g, '&lt;').replace(/&gt;/g, '&gt;').replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
-            link: `https://www.youtube.com/watch?v=${videoId}`,
+            title: this.decodeHTMLEntities(title),
+            link,
             author,
             published,
             thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
           }];
         }
       }
-    } catch (e) {}
-    return [];
+      return [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  decodeHTMLEntities(text) {
+    const entities = {
+      '&amp;amp;': '&', '&amp;lt;': '&lt;', '&amp;gt;': '&gt;', '&amp;quot;': '"', '&amp;#39;': "'", '&amp;apos;': "'"
+    };
+    return text.replace(/&amp;amp;|&amp;lt;|&amp;gt;|&amp;quot;|&amp;#39;|&amp;apos;/g, m =&gt; entities[m]);
   }
 };</pre>
                 </div>
