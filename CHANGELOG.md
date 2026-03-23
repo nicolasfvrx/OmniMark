@@ -2,6 +2,17 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.3.0] - 2026-03-24
+
+### ✨ Nouvelles fonctionnalités
+- **Bouton d'ajout YouTube direct** : Ajout d'un bouton "Ajouter à OmniMark" directement sur les pages de chaînes YouTube (à droite du bouton S'abonner/Rejoindre) pour simplifier la gestion des chaînes suivies.
+
+### 🔧 Améliorations techniques
+- **Intégration YouTube intelligente** : Détection dynamique du bouton d'abonnement et insertion robuste dans la barre d'actions, compatible avec les nouvelles interfaces YouTube (view-model).
+- **Gestion de la navigation SPA** : Utilisation d'un `MutationObserver` et d'un système de nettoyage pour assurer la présence et l'unicité du bouton lors de la navigation interne sur YouTube.
+
+---
+
 ## [1.2.0] - 2026-03-23
 
 ### ✨ Nouvelles fonctionnalités
