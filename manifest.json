@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "OmniMark",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "author": "Nicolas",
   "description": "Votre page de démarrage personnalisée, synchronisée et dotée de raccourcis de recherche puissants.",
   "chrome_url_overrides": {
     "newtab": "src/index.html"
   },
+  "chrome_settings_overrides" : {
+    "homepage": "src/index.html"
+   },
   "browser_specific_settings": {
     "gecko": {
       "id": "omnimark@nicolas.projets",

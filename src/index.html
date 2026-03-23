@@ -20,12 +20,28 @@
             <a href="options.html" class="settings-link">&#9881;</a>
         </div>
     </header>
+
+    <div id="youtube-widget" class="youtube-container" style="display: none;">
+        <div class="youtube-header">
+            <h3>Dernières Vidéos</h3>
+            <button id="refresh-youtube" title="Actualiser">↻</button>
+        </div>
+        <div id="youtube-videos" class="youtube-grid">
+            <!-- Les vidéos seront insérées ici -->
+        </div>
+    </div>
     <section class="grid" id="bookmark-grid">
         <!-- Les catégories dynamiques seront insérées ici -->
     </section>
-
     <footer id="status-bar">
         <div id="footer-date" class="footer-item"></div>
+        <div class="status-container">
+            <div id="fivem-status" class="footer-item status-module" style="display: none;">
+                <span class="status-label">FiveM:</span>
+                <span class="status-value">Chargement...</span>
+                <div class="status-tooltip" id="fivem-tooltip"></div>
+            </div>
+        </div>
         <div id="footer-time" class="footer-item"></div>
     </footer>
 

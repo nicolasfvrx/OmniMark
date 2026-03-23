@@ -9,6 +9,7 @@
         body { padding: 20px; text-align: left; height: auto; display: block; overflow-y: auto; }
         .options-container { max-width: 800px; margin: 0 auto; background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 10px; }
         .form-group { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--secondary-color); }
+        #tab-general .form-group { border-bottom: none; padding-bottom: 0; }
         label { display: block; margin-bottom: 5px; color: var(--primary-color); }
         input, select { width: 100%; padding: 8px; margin-bottom: 10px; background: var(--bg-color); border: 1px solid var(--secondary-color); color: white; border-radius: 4px; }
         button { background: var(--secondary-color); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
@@ -35,8 +36,8 @@
         h1 { margin-bottom: 30px; color: var(--primary-color); letter-spacing: 2px; }
 
         /* Styles pour les onglets */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; }
-        .tab-btn { background: transparent; border: none; color: var(--secondary-color); font-size: 18px; cursor: pointer; padding: 5px 15px; border-radius: 4px; transition: 0.3s; font-family: inherit; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; flex-wrap: wrap; }
+        .tab-btn { background: transparent; border: none; color: var(--secondary-color); font-size: 16px; cursor: pointer; padding: 8px 12px; border-radius: 4px; transition: 0.3s; font-family: inherit; white-space: nowrap; }
         .tab-btn.active { color: var(--primary-color); background: rgba(33, 150, 243, 0.1); }
         .tab-btn:hover:not(.active) { color: white; }
         .tab-pane { display: none; }
@@ -143,7 +144,10 @@
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="tab-bookmarks">Favoris</button>
-            <button class="tab-btn" data-tab="tab-search">Raccourcis de Recherche</button>
+            <button class="tab-btn" data-tab="tab-search">Recherche</button>
+            <button class="tab-btn" data-tab="tab-general">Général</button>
+            <button class="tab-btn" data-tab="tab-backup">Sauvegarde</button>
+            <button class="tab-btn" data-tab="tab-youtube-guide">Guide YouTube</button>
         </div>
 
         <div id="tab-bookmarks" class="tab-pane active">
@@ -231,6 +235,270 @@
             <div class="category-list">
                 <h3>Raccourcis Actuels</h3>
                 <div id="search-engines-list"></div>
+            </div>
+        </div>
+
+        <div id="tab-general" class="tab-pane">
+            <div class="form-group">
+                <h3>Modules de statut (Footer)</h3>
+                <div class="checkbox-group">
+                    <label class="switch">
+                        <input type="checkbox" id="enable-status-fivem">
+                        <span class="slider"></span>
+                    </label>
+                    <span style="color: var(--primary-color); font-size: 14px;">Afficher le statut FiveM</span>
+                </div>
+                
+                <p style="color: var(--secondary-color); font-size: 12px; margin-top: 10px;">
+                    Ces modules s'affichent dans la barre d'état en bas de page.
+                </p>
+
+                <h3 style="margin-top: 30px;">Widget YouTube</h3>
+                <div class="checkbox-group">
+                    <label class="switch">
+                        <input type="checkbox" id="enable-widget-youtube">
+                        <span class="slider"></span>
+                    </label>
+                    <span style="color: var(--primary-color); font-size: 14px;">Activer le widget YouTube</span>
+                </div>
+                
+                <div id="youtube-config" style="display: none;">
+                    <label for="youtube-worker-url">URL de votre Cloudflare Worker</label>
+                    <input type="url" id="youtube-worker-url" placeholder="https://youtube-worker.mon-compte.workers.dev">
+                    
+                    <label>Chaînes YouTube suivies</label>
+                    <div id="youtube-channels-list" class="youtube-list">
+                        <div class="youtube-list-empty">Aucune chaîne configurée.</div>
+                    </div>
+
+                    <div id="youtube-id-finder" style="margin-top: 5px; margin-bottom: 20px; padding: 12px; background: rgba(33, 150, 243, 0.05); border-radius: 6px; border-left: 3px solid var(--primary-color);">
+                        <label for="youtube-handle-input" style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Ajouter via @username</label>
+                        <div style="display: flex; gap: 8px; margin-top: 5px;">
+                            <input type="text" id="youtube-handle-input" placeholder="@MrBeast" style="margin-bottom: 0; font-size: 13px; height: 32px;">
+                            <button id="find-youtube-id" style="width: auto; padding: 0 12px; margin: 0; height: 32px; font-size: 12px;">Rechercher</button>
+                        </div>
+                        <div id="handle-result" style="font-size: 11px; margin-top: 6px; min-height: 14px; color: var(--secondary-color);"></div>
+                    </div>
+
+                    <label style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-top: 15px;">Ajout manuel</label>
+                    <div class="add-channel-manual" style="margin-top: 5px; margin-bottom: 20px; display: flex; gap: 5px;">
+                        <input type="text" id="new-channel-name" placeholder="Nom de la chaîne" style="flex: 1; margin-bottom: 0; font-size: 13px; height: 32px;">
+                        <input type="text" id="new-channel-id" placeholder="ID (UC...)" style="flex: 1; margin-bottom: 0; font-size: 13px; height: 32px;">
+                        <button id="add-channel-btn" style="width: auto; padding: 0 15px; height: 32px; font-size: 12px;">Ajouter</button>
+                    </div>
+
+                    <label for="youtube-position">Position du widget</label>
+                    <select id="youtube-position" style="margin-bottom: 15px;">
+                        <option value="bottom" selected>Bas (après les favoris)</option>
+                        <option value="top">Haut (avant les favoris)</option>
+                    </select>
+
+                    <div style="margin-top: 10px;">
+                        <button id="clear-watched-videos" class="delete-btn" style="margin-left: 0; padding: 5px 10px; font-size: 11px;">
+                            Réinitialiser les vidéos vues
+                        </button>
+                    </div>
+                </div>
+                
+                <p style="color: var(--secondary-color); font-size: 12px; margin-top: 20px;">
+                    <span style="opacity: 0.7;">D'autres modules (Météo, News, etc.) arriveront prochainement.</span>
+                </p>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(33, 150, 243, 0.05); border: 1px dashed var(--primary-color); border-radius: 8px;">
+                    <p style="margin-bottom: 10px; font-size: 14px; color: var(--primary-color);"><strong>Besoin d'aide ?</strong> Suivez le guide pour configurer votre propre relais Cloudflare.</p>
+                    <button class="tab-btn" data-tab="tab-youtube-guide" style="font-size: 13px; background: var(--primary-color); color: white; padding: 8px 15px; border-radius: 4px; display: inline-block;">
+                        Consulter le guide d'installation
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-backup" class="tab-pane">
+            <div class="form-group">
+                <h3>Favoris & Moteurs de recherche</h3>
+                <p style="color: var(--secondary-color); font-size: 14px; margin-bottom: 15px;">
+                    Sauvegardez uniquement vos tuiles de favoris, catégories et moteurs de recherche.
+                </p>
+                <div style="display: flex; gap: 10px;">
+                    <button id="export-bookmarks-btn" style="background: var(--primary-color); flex: 1;">Exporter les favoris</button>
+                    <button id="import-bookmarks-btn" style="flex: 1;">Importer les favoris</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <h3>Configuration YouTube</h3>
+                <p style="color: var(--secondary-color); font-size: 14px; margin-bottom: 15px;">
+                    Sauvegardez votre liste de chaînes, l'URL de votre worker et l'historique des vidéos vues.
+                </p>
+                <div style="display: flex; gap: 10px;">
+                    <button id="export-youtube-btn" style="background: #f44336; flex: 1;">Exporter YouTube</button>
+                    <button id="import-youtube-btn" style="flex: 1;">Importer YouTube</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="border-bottom: none; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h3>Sauvegarde Globale</h3>
+                <p style="color: var(--secondary-color); font-size: 14px; margin-bottom: 15px;">
+                    Téléchargez ou restaurez l'intégralité de vos données OmniMark en un seul fichier.
+                </p>
+                <div style="display: flex; gap: 10px;">
+                    <button id="export-btn" style="background: #333; flex: 1; border: 1px solid #444;">Tout Exporter</button>
+                    <button id="import-btn" style="flex: 1; border: 1px solid #444;">Tout Importer</button>
+                </div>
+                <input type="file" id="import-file" accept=".json" style="display: none;">
+                <div id="import-status" style="margin-top: 15px; font-size: 14px; text-align: center; min-height: 20px;"></div>
+            </div>
+        </div>
+
+        <div id="tab-youtube-guide" class="tab-pane">
+            <div class="form-group" style="border-bottom: none;">
+                <h3>Guide d'installation du Cloudflare Worker</h3>
+                <p style="font-size: 14px; color: #ccc; margin-bottom: 20px;">
+                    Pour que le widget YouTube fonctionne, vous devez déployer votre propre relais gratuit sur Cloudflare. 
+                    Cela permet d'éviter les limites d'API et de garantir votre vie privée.
+                </p>
+
+                <div class="guide-step">
+                    <h4 style="color: var(--primary-color); margin-bottom: 10px;">1. Prérequis</h4>
+                    <ol style="color: #bbb; font-size: 14px; line-height: 1.6; padding-left: 20px;">
+                        <li>Créez un compte gratuit sur <a href="https://dash.cloudflare.com/" target="_blank" style="color: var(--primary-color);">dash.cloudflare.com</a>.</li>
+                        <li>Allez dans <strong>Workers & Pages</strong> > <strong>KV</strong> et créez un namespace nommé <code>YOUTUBE_KV</code>.</li>
+                        <li>(Optionnel) Allez dans <strong>Queues</strong> et créez une queue nommée <code>youtube-queue</code> (nécessite un plan Paid).</li>
+                        <li>Créez un nouveau Worker (ex: <code>youtube-worker</code>).</li>
+                    </ol>
+                </div>
+
+                <div class="guide-step" style="margin-top: 25px;">
+                    <h4 style="color: var(--primary-color); margin-bottom: 10px;">2. Configuration</h4>
+                    <ol style="color: #bbb; font-size: 14px; line-height: 1.6; padding-left: 20px;">
+                        <li>Dans les réglages du Worker (<strong>Settings > Variables</strong>), liez le KV Namespace : Variable = <code>YOUTUBE_KV</code>.</li>
+                        <li>(Si Queue active) Liez la Queue : Variable = <code>YOUTUBE_QUEUE</code>.</li>
+                        <li>Dans <strong>Settings > Triggers</strong>, ajoutez un <strong>Cron Trigger</strong> (ex: toutes les 30 min).</li>
+                    </ol>
+                </div>
+
+                <div class="guide-step" style="margin-top: 25px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="color: var(--primary-color); margin: 0;">3. Code du Worker</h4>
+                        <button id="copy-worker-code" style="font-size: 11px; padding: 5px 10px; background: var(--primary-color);">Copier le code</button>
+                    </div>
+                    <pre id="worker-code-display" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 6px; border: 1px solid var(--secondary-color); color: #eee; font-family: 'Consolas', monospace; font-size: 12px; max-height: 400px; overflow: auto; white-space: pre-wrap;">
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const channels = url.searchParams.get('channels');
+    const handle = url.searchParams.get('handle');
+
+    if (handle) {
+      const result = await this.resolveHandle(handle);
+      return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
+    if (!channels) {
+      return new Response(JSON.stringify({ error: "No channels" }), { 
+        status: 400, headers: { "Access-Control-Allow-Origin": "*" } 
+      });
+    }
+
+    const channelList = [...new Set(channels.split(',').map(s => s.trim()).filter(s => s))];
+    ctx.waitUntil(this.updateGlobalChannelList(channelList, env));
+
+    const videoPromises = channelList.map(async (channelId) => {
+      const cached = await env.YOUTUBE_KV.get(`videos_${channelId}`, { type: 'json' });
+      if (cached) return cached;
+      const videos = await this.fetchAndParseRSS(channelId);
+      if (videos.length > 0) {
+        await env.YOUTUBE_KV.put(`videos_${channelId}`, JSON.stringify(videos), { expirationTtl: 3600 });
+      }
+      return videos;
+    });
+
+    const results = await Promise.all(videoPromises);
+    let latestVideos = results.flat().filter(v => v);
+    latestVideos.sort((a, b) => new Date(b.published) - new Date(a.published));
+
+    return new Response(JSON.stringify(latestVideos), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+  },
+
+  async scheduled(event, env, ctx) {
+    const channels = await env.YOUTUBE_KV.get('channel_list', { type: 'json' }) || [];
+    for (const channelId of channels) {
+      if (env.YOUTUBE_QUEUE) await env.YOUTUBE_QUEUE.send({ channelId });
+      else await this.fetchAndParseRSS(channelId); // Fallback sans Queue
+    }
+  },
+
+  async queue(batch, env) {
+    for (const message of batch.messages) {
+      const { channelId } = message.body;
+      const videos = await this.fetchAndParseRSS(channelId);
+      if (videos.length > 0) {
+        await env.YOUTUBE_KV.put(`videos_${channelId}`, JSON.stringify(videos), { expirationTtl: 3600 });
+      }
+    }
+  },
+
+  async resolveHandle(handle) {
+    if (!handle.startsWith('@')) handle = '@' + handle;
+    const response = await fetch(`https://www.youtube.com/${handle}`);
+    if (!response.ok) return null;
+    const html = await response.text();
+    const idMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]+)"/) || 
+                  html.match(/itemprop="identifier" content="(UC[a-zA-Z0-9_-]+)"/);
+    const ogTitle = html.match(/property="og:title" content="([^"]+)"/);
+    return idMatch ? { channelId: idMatch[1], name: ogTitle ? ogTitle[1] : handle } : null;
+  },
+
+  async updateGlobalChannelList(channels, env) {
+    const existing = await env.YOUTUBE_KV.get('channel_list', { type: 'json' }) || [];
+    const newList = Array.from(new Set([...existing, ...channels]));
+    if (newList.length !== existing.length) {
+      await env.YOUTUBE_KV.put('channel_list', JSON.stringify(newList));
+    }
+  },
+
+  async isShort(videoId) {
+    const response = await fetch(`https://www.youtube.com/shorts/${videoId}`, {
+      method: 'HEAD', redirect: 'manual'
+    });
+    return response.status === 200;
+  },
+
+  async fetchAndParseRSS(channelId) {
+    try {
+      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      const response = await fetch(rssUrl);
+      if (!response.ok) return [];
+      const xml = await response.text();
+      const entries = xml.matchAll(/&lt;entry&gt;([\s\S]*?)&lt;\/entry&gt;/g);
+      
+      for (const match of entries) {
+        const entry = match[1];
+        const videoId = entry.match(/&lt;yt:videoId&gt;(.*?)&lt;\/yt:videoId&gt;/)?.[1];
+        const title = entry.match(/&lt;title&gt;(.*?)&lt;\/title&gt;/)?.[1];
+        const author = entry.match(/&lt;name&gt;(.*?)&lt;\/name&gt;/)?.[1];
+        const published = entry.match(/&lt;published&gt;(.*?)&lt;\/published&gt;/)?.[1];
+
+        if (videoId && title) {
+          if (await this.isShort(videoId)) continue;
+          return [{
+            id: videoId,
+            title: title.replace(/&amp;/g, '&').replace(/&lt;/g, '&lt;').replace(/&gt;/g, '&gt;').replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
+            link: `https://www.youtube.com/watch?v=${videoId}`,
+            author,
+            published,
+            thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+          }];
+        }
+      }
+    } catch (e) {}
+    return [];
+  }
+};</pre>
+                </div>
             </div>
         </div>
 

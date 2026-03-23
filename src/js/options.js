@@ -9,10 +9,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Gestion des onglets
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.onclick = () => {
+            const targetTab = btn.dataset.tab;
+            
+            // Masquer tous les onglets
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById(btn.dataset.tab).classList.add('active');
+            
+            // Activer l'onglet cible (bouton cliqué + bouton correspondant dans la barre d'onglets)
+            document.querySelectorAll(`.tab-btn[data-tab="${targetTab}"]`).forEach(b => b.classList.add('active'));
+            const targetPane = document.getElementById(targetTab);
+            if (targetPane) targetPane.classList.add('active');
+            
+            // Scroller vers le haut si on a cliqué sur un bouton dans le contenu
+            if (!btn.closest('.tabs')) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         };
     });
 
@@ -28,6 +39,87 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logoDevThemeContainer = document.getElementById('logodev-theme-container');
     const linkIconTheme = document.getElementById('link-icon-theme');
 
+    // Éléments pour les modules de statut
+    const enableStatusFiveM = document.getElementById('enable-status-fivem');
+    const enableWidgetYoutube = document.getElementById('enable-widget-youtube');
+    const youtubeConfig = document.getElementById('youtube-config');
+    const youtubeWorkerUrl = document.getElementById('youtube-worker-url');
+    const youtubeChannelsList = document.getElementById('youtube-channels-list');
+    const youtubePosition = document.getElementById('youtube-position');
+
+    async function renderYoutubeChannels() {
+        if (!youtubeChannelsList) return;
+        
+        const result = await browser.storage.sync.get('settings');
+        const settings = result.settings || {};
+        let channels = settings.youtubeChannels || [];
+        
+        // Migration de l'ancien format (string) vers le nouveau format (array)
+        if (typeof channels === 'string') {
+            channels = channels.split(',').map(s => s.trim()).filter(s => s).map(id => ({ id, name: id }));
+            // On sauvegarde immédiatement la conversion
+            settings.youtubeChannels = channels;
+            await browser.storage.sync.set({ settings });
+        }
+
+        youtubeChannelsList.innerHTML = '';
+
+        if (channels.length === 0) {
+            youtubeChannelsList.innerHTML = '';
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'youtube-list-empty';
+            emptyDiv.textContent = 'Aucune chaîne configurée.';
+            youtubeChannelsList.appendChild(emptyDiv);
+            return;
+        }
+
+        channels.forEach((channel, index) => {
+            const item = document.createElement('div');
+            item.className = 'youtube-list-item';
+            
+            const info = document.createElement('div');
+            info.className = 'channel-info';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'channel-name';
+            nameSpan.textContent = channel.name || 'Chaîne inconnue';
+            
+            const idSpan = document.createElement('span');
+            idSpan.className = 'channel-id';
+            idSpan.textContent = channel.id;
+            
+            info.appendChild(nameSpan);
+            info.appendChild(idSpan);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '✕';
+            deleteBtn.dataset.index = index;
+            deleteBtn.style.margin = '0';
+            deleteBtn.style.padding = '5px 10px';
+            
+            item.appendChild(info);
+            item.appendChild(deleteBtn);
+            
+            deleteBtn.onclick = async () => {
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                let currentChannels = s.youtubeChannels || [];
+                
+                if (typeof currentChannels === 'string') {
+                    currentChannels = currentChannels.split(',').map(s => s.trim()).filter(s => s).map(id => ({ id, name: id }));
+                }
+                
+                currentChannels.splice(index, 1);
+                s.youtubeChannels = currentChannels;
+                await browser.storage.sync.set({ settings: s });
+                renderYoutubeChannels();
+            };
+            
+            youtubeChannelsList.appendChild(item);
+        });
+    }
+
     async function initSettings() {
         const result = await browser.storage.sync.get('settings');
         const settings = result.settings || {};
@@ -39,6 +131,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (settings.logoDevToken) {
             logodevToken.value = settings.logoDevToken;
+        }
+
+        if (settings.enableStatusFiveM) {
+            enableStatusFiveM.checked = true;
+        }
+
+        if (settings.enableWidgetYoutube) {
+            enableWidgetYoutube.checked = true;
+            if (youtubeConfig) youtubeConfig.style.display = 'block';
+        }
+
+        if (settings.youtubeWorkerUrl) {
+            youtubeWorkerUrl.value = settings.youtubeWorkerUrl;
+        }
+
+        await renderYoutubeChannels();
+
+        if (settings.youtubeWidgetPosition) {
+            youtubePosition.value = settings.youtubeWidgetPosition;
+        } else {
+            youtubePosition.value = 'bottom';
         }
 
         enableSystemSearch.onchange = async () => {
@@ -59,10 +172,189 @@ document.addEventListener('DOMContentLoaded', async () => {
             await browser.storage.sync.set({ settings: s });
         };
 
+        enableStatusFiveM.onchange = async () => {
+            const isEnabled = enableStatusFiveM.checked;
+            const res = await browser.storage.sync.get('settings');
+            const s = res.settings || {};
+            s.enableStatusFiveM = isEnabled;
+            await browser.storage.sync.set({ settings: s });
+        };
+
+        enableWidgetYoutube.onchange = async () => {
+            const isEnabled = enableWidgetYoutube.checked;
+            youtubeConfig.style.display = isEnabled ? 'block' : 'none';
+            const res = await browser.storage.sync.get('settings');
+            const s = res.settings || {};
+            s.enableWidgetYoutube = isEnabled;
+            await browser.storage.sync.set({ settings: s });
+        };
+
+        youtubeWorkerUrl.onchange = async () => {
+            const url = youtubeWorkerUrl.value.trim();
+            const res = await browser.storage.sync.get('settings');
+            const s = res.settings || {};
+            s.youtubeWorkerUrl = url;
+            await browser.storage.sync.set({ settings: s });
+        };
+
+        const addChannelBtn = document.getElementById('add-channel-btn');
+        const newChannelName = document.getElementById('new-channel-name');
+        const newChannelId = document.getElementById('new-channel-id');
+
+        if (addChannelBtn) {
+            addChannelBtn.onclick = async () => {
+                const name = newChannelName.value.trim();
+                const id = newChannelId.value.trim();
+
+                if (!name || !id) {
+                    alert('Veuillez renseigner le nom et l\'ID de la chaîne.');
+                    return;
+                }
+
+                if (!id.startsWith('UC')) {
+                    alert('L\'ID de chaîne YouTube doit commencer par "UC".');
+                    return;
+                }
+
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                let channels = s.youtubeChannels || [];
+                
+                if (typeof channels === 'string') {
+                    channels = channels.split(',').map(s => s.trim()).filter(s => s).map(cid => ({ id: cid, name: cid }));
+                }
+
+                if (channels.some(c => c.id === id)) {
+                    alert('Cette chaîne est déjà dans votre liste.');
+                    return;
+                }
+
+                channels.push({ id, name });
+                s.youtubeChannels = channels;
+                await browser.storage.sync.set({ settings: s });
+                
+                newChannelName.value = '';
+                newChannelId.value = '';
+                renderYoutubeChannels();
+            };
+        }
+
+        youtubePosition.onchange = async () => {
+            const position = youtubePosition.value;
+            const res = await browser.storage.sync.get('settings');
+            const s = res.settings || {};
+            s.youtubeWidgetPosition = position;
+            await browser.storage.sync.set({ settings: s });
+        };
+
+        const clearWatchedBtn = document.getElementById('clear-watched-videos');
+        if (clearWatchedBtn) {
+            clearWatchedBtn.onclick = async () => {
+                const res = await browser.storage.local.get('watchedVideos');
+                if (!res.watchedVideos || res.watchedVideos.length === 0) {
+                    alert('L\'historique est déjà vide.');
+                    return;
+                }
+                if (confirm('Voulez-vous vraiment réinitialiser la liste des vidéos vues ? Elles réapparaîtront toutes sur la page d\'accueil.')) {
+                    await browser.storage.local.remove('watchedVideos');
+                    alert('Historique YouTube réinitialisé.');
+                }
+            };
+        }
+
+        // Fonctionnalité "Copier le code" pour le Worker
+        const copyCodeBtn = document.getElementById('copy-worker-code');
+        if (copyCodeBtn) {
+            copyCodeBtn.onclick = () => {
+                const code = document.getElementById('worker-code-display').innerText;
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = copyCodeBtn.innerText;
+                    copyCodeBtn.innerText = 'Copié !';
+                    const originalBg = copyCodeBtn.style.background;
+                    copyCodeBtn.style.background = '#4caf50';
+                    setTimeout(() => {
+                        copyCodeBtn.innerText = originalText;
+                        copyCodeBtn.style.background = originalBg;
+                    }, 2000);
+                });
+            };
+        }
+
+        const findYoutubeIdBtn = document.getElementById('find-youtube-id');
+        const handleInput = document.getElementById('youtube-handle-input');
+        const handleResult = document.getElementById('handle-result');
+
+        if (findYoutubeIdBtn) {
+            findYoutubeIdBtn.onclick = async () => {
+                const workerUrl = youtubeWorkerUrl.value.trim();
+                const handle = handleInput.value.trim();
+
+                if (!workerUrl) {
+                    alert('Veuillez d\'abord renseigner l\'URL de votre Cloudflare Worker.');
+                    return;
+                }
+                if (!handle) {
+                    alert('Veuillez entrer un nom d\'utilisateur (ex: @MrBeast).');
+                    return;
+                }
+
+                handleResult.textContent = 'Recherche en cours...';
+                handleResult.style.color = 'var(--secondary-color)';
+
+                try {
+                    const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+                    const response = await fetch(`${cleanWorkerUrl}?handle=${encodeURIComponent(handle)}`);
+                    const data = await response.json();
+
+                    if (data.channelId) {
+                        const channelName = data.name || handle;
+                        handleResult.textContent = `Trouvé : ${channelName} (${data.channelId})`;
+                        handleResult.style.color = 'var(--primary-color)';
+                        
+                        const addBtn = document.createElement('button');
+                        addBtn.className = 'add-id-btn';
+                        addBtn.textContent = 'Ajouter';
+                        addBtn.style.cssText = 'padding: 2px 6px; font-size: 10px; margin-left: 5px; width: auto; display: inline-block;';
+                        handleResult.appendChild(addBtn);
+                        
+                        addBtn.onclick = async () => {
+                            const res = await browser.storage.sync.get('settings');
+                            const s = res.settings || {};
+                            let current = s.youtubeChannels || [];
+                            
+                            if (typeof current === 'string') {
+                                current = current.split(',').map(s => s.trim()).filter(s => s).map(id => ({ id, name: id }));
+                            }
+
+                            if (current.some(c => c.id === data.channelId)) {
+                                alert('Cette chaîne est déjà dans votre liste.');
+                                return;
+                            }
+                            
+                            current.push({ id: data.channelId, name: channelName });
+                            s.youtubeChannels = current;
+                            await browser.storage.sync.set({ settings: s });
+                            
+                            renderYoutubeChannels();
+                            handleResult.textContent = 'Chaîne ajoutée !';
+                            handleResult.style.color = '#27ae60';
+                            handleInput.value = '';
+                        };
+                    } else {
+                        handleResult.textContent = 'ID non trouvé. Vérifiez le nom d\'utilisateur.';
+                        handleResult.style.color = '#e74c3c';
+                    }
+                } catch (e) {
+                    handleResult.textContent = 'Erreur lors de la recherche. Vérifiez l\'URL du worker.';
+                    handleResult.style.color = '#e74c3c';
+                }
+            };
+        }
+
         systemSearchInput.oninput = async () => {
             const query = systemSearchInput.value.trim();
             if (query.length < 2) {
-                systemSearchResults.innerHTML = '';
+                systemSearchResults.textContent = '';
                 systemSearchResults.style.display = 'none';
                 return;
             }
@@ -76,7 +368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const results = await browser.bookmarks.search(query);
                 const bookmarks = results.filter(b => b.url);
                 
-                systemSearchResults.innerHTML = '';
+                systemSearchResults.textContent = '';
                 if (bookmarks.length > 0) {
                     systemSearchResults.style.display = 'block';
                     bookmarks.slice(0, 10).forEach(b => {
@@ -174,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderEngines(engines) {
-        searchEnginesList.innerHTML = '';
+        searchEnginesList.textContent = '';
         for (const prefix in engines) {
             const engine = engines[prefix];
             const div = document.createElement('div');
@@ -242,7 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     function renderList(data) {
-        dataList.innerHTML = '';
+        dataList.textContent = '';
         data.forEach((cat, catIdx) => {
             const catDiv = document.createElement('div');
             catDiv.className = 'cat-item';
@@ -510,7 +802,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateSelect(data) {
-        catSelect.innerHTML = '';
+        catSelect.textContent = '';
         data.forEach((cat, idx) => {
             const opt = document.createElement('option');
             opt.value = idx;
@@ -563,6 +855,197 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('link-icon-type').value = 'favicon';
         loadData();
     };
+
+    // Gestion de l'Export / Import
+    const exportBookmarksBtn = document.getElementById('export-bookmarks-btn');
+    const importBookmarksBtn = document.getElementById('import-bookmarks-btn');
+    const exportYoutubeBtn = document.getElementById('export-youtube-btn');
+    const importYoutubeBtn = document.getElementById('import-youtube-btn');
+    const exportBtn = document.getElementById('export-btn');
+    const importBtn = document.getElementById('import-btn');
+    const importFile = document.getElementById('import-file');
+    const importStatus = document.getElementById('import-status');
+    let importType = 'all';
+
+    function downloadJSON(data, filename) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    if (exportBookmarksBtn) {
+        exportBookmarksBtn.onclick = async () => {
+            try {
+                const data = await browser.storage.sync.get(['bookmarkData', 'searchEngines', 'settings']);
+                const filteredSettings = {};
+                if (data.settings) {
+                    ['enableSystemSearch', 'logoDevToken', 'enableStatusFiveM'].forEach(key => {
+                        if (data.settings[key] !== undefined) filteredSettings[key] = data.settings[key];
+                    });
+                }
+                const exportData = {
+                    bookmarkData: data.bookmarkData,
+                    searchEngines: data.searchEngines,
+                    settings: filteredSettings,
+                    type: 'bookmarks',
+                    version: 1,
+                    date: new Date().toISOString()
+                };
+                downloadJSON(exportData, `omnimark_bookmarks_${new Date().toISOString().split('T')[0]}.json`);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Erreur lors de l\'exportation : ' + err.message);
+            }
+        };
+    }
+
+    if (importBookmarksBtn) {
+        importBookmarksBtn.onclick = () => {
+            importType = 'bookmarks';
+            importFile.click();
+        };
+    }
+
+    if (exportYoutubeBtn) {
+        exportYoutubeBtn.onclick = async () => {
+            try {
+                const syncData = await browser.storage.sync.get('settings');
+                const localData = await browser.storage.local.get('watchedVideos');
+                const youtubeSettings = {};
+                if (syncData.settings) {
+                    ['enableWidgetYoutube', 'youtubeWorkerUrl', 'youtubeChannels', 'youtubeWidgetPosition'].forEach(key => {
+                        if (syncData.settings[key] !== undefined) youtubeSettings[key] = syncData.settings[key];
+                    });
+                }
+                const exportData = {
+                    settings: youtubeSettings,
+                    local: localData,
+                    type: 'youtube',
+                    version: 1,
+                    date: new Date().toISOString()
+                };
+                downloadJSON(exportData, `omnimark_youtube_${new Date().toISOString().split('T')[0]}.json`);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Erreur lors de l\'exportation : ' + err.message);
+            }
+        };
+    }
+
+    if (importYoutubeBtn) {
+        importYoutubeBtn.onclick = () => {
+            importType = 'youtube';
+            importFile.click();
+        };
+    }
+
+    if (exportBtn) {
+        exportBtn.onclick = async () => {
+            try {
+                const syncData = await browser.storage.sync.get();
+                const localData = await browser.storage.local.get('watchedVideos');
+                const fullBackup = {
+                    sync: syncData,
+                    local: localData,
+                    type: 'all',
+                    version: 1,
+                    date: new Date().toISOString()
+                };
+                downloadJSON(fullBackup, `omnimark_full_backup_${new Date().toISOString().split('T')[0]}.json`);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Erreur lors de l\'exportation : ' + err.message);
+            }
+        };
+    }
+
+    if (importBtn) {
+        importBtn.onclick = () => {
+            importType = 'all';
+            importFile.click();
+        };
+    }
+
+    if (importFile) {
+        importFile.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const backup = JSON.parse(event.target.result);
+                    
+                    let confirmMsg = "Êtes-vous sûr de vouloir importer ces données ?";
+                    if (importType === 'bookmarks') confirmMsg = "Importer uniquement les favoris ? Cela remplacera vos catégories et tuiles actuelles.";
+                    if (importType === 'youtube') confirmMsg = "Importer uniquement la configuration YouTube ? Cela remplacera votre liste de chaînes.";
+
+                    if (confirm(confirmMsg)) {
+                        if (importType === 'all') {
+                            if (!backup.sync && !backup.bookmarkData && !backup.settings && !backup.searchEngines) {
+                                throw new Error("Format de fichier invalide pour une sauvegarde complète.");
+                            }
+                            if (backup.sync) {
+                                await browser.storage.sync.clear();
+                                await browser.storage.sync.set(backup.sync);
+                                if (backup.local) await browser.storage.local.set(backup.local);
+                            } else {
+                                await browser.storage.sync.clear();
+                                await browser.storage.sync.set(backup);
+                            }
+                        } else if (importType === 'bookmarks') {
+                            const dataToImport = backup.sync || backup;
+                            if (dataToImport.bookmarkData) {
+                                await browser.storage.sync.set({ bookmarkData: dataToImport.bookmarkData });
+                            }
+                            if (dataToImport.searchEngines) {
+                                await browser.storage.sync.set({ searchEngines: dataToImport.searchEngines });
+                            }
+                            if (dataToImport.settings) {
+                                const res = await browser.storage.sync.get('settings');
+                                const currentSettings = res.settings || {};
+                                // On ne merge que les clés liées aux favoris/système
+                                ['enableSystemSearch', 'logoDevToken', 'enableStatusFiveM'].forEach(key => {
+                                    if (dataToImport.settings[key] !== undefined) currentSettings[key] = dataToImport.settings[key];
+                                });
+                                await browser.storage.sync.set({ settings: currentSettings });
+                            }
+                        } else if (importType === 'youtube') {
+                            const dataToImport = backup.sync || backup;
+                            if (dataToImport.settings) {
+                                const res = await browser.storage.sync.get('settings');
+                                const currentSettings = res.settings || {};
+                                // On ne merge que les clés liées à YouTube
+                                ['enableWidgetYoutube', 'youtubeWorkerUrl', 'youtubeChannels', 'youtubeWidgetPosition'].forEach(key => {
+                                    if (dataToImport.settings[key] !== undefined) currentSettings[key] = dataToImport.settings[key];
+                                });
+                                await browser.storage.sync.set({ settings: currentSettings });
+                            }
+                            const localData = backup.local || (backup.watchedVideos ? backup : null);
+                            if (localData && localData.watchedVideos) {
+                                await browser.storage.local.set({ watchedVideos: localData.watchedVideos });
+                            }
+                        }
+
+                        importStatus.textContent = "✅ Importation réussie ! Rechargement...";
+                        importStatus.style.color = "#4caf50";
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                } catch (err) {
+                    importStatus.textContent = "❌ Erreur : " + err.message;
+                    importStatus.style.color = "#ff4444";
+                }
+                importFile.value = '';
+            };
+            reader.readAsText(file);
+        };
+    }
 
     initSettings();
     loadData();
