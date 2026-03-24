@@ -1,58 +1,107 @@
-# Journal des modifications - OmniMark
+# Journal des modifications / Changelog - OmniMark
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
+All notable changes to this project will be documented in this file.
+
+---
+
+## [2.0.0] - 2026-03-24
+
+### FR:
+#### 🛡️ Sécurité & Modernisation
+- **Sécurité** : Correction finale des avertissements Firefox (AMO) en remplaçant `innerHTML` et `insertAdjacentHTML` par des méthodes DOM pures (`createElementNS`, `prepend`, `textContent`).
+- **Modernisation** : Remplacement de toutes les occurrences de `innerHTML` par des méthodes DOM plus sûres et performantes comme `replaceChildren()` et `textContent`.
+#### 📺 Streaming Unifié
+- **Widget Multi-Plateforme** : Support complet de **Twitch** et **Kick** sur la page d'accueil.
+- **Fusion Multistream** : Regroupement automatique des lives d'un même streamer diffusant sur plusieurs plateformes (badges cumulés et total spectateurs).
+- **Gestion Avancée** : Ajout, modification et suppression facilitée des streamers depuis un onglet dédié.
+
+#### 🚀 Rework Infrastructure (Cloudflare Worker)
+- **Worker Unifié** : Un seul script pour YouTube, Twitch et Kick.
+- **Sécurité Renforcée** : Authentification par clé API (`X-API-Key`) et page d'administration sécurisée.
+- **Synchronisation Automatique** : Les chaînes suivies sont désormais stockées en KV (Cloudflare) pour des performances optimales (chargement instantané via cache).
+- **Automatisation** : Vérification des lives toutes les 5 minutes (Cron Trigger).
+
+#### 📺 Améliorations YouTube
+- **Filtrage Anti-Shorts Radical** : Nouveau système de détection côté serveur (HEAD request) pour masquer les shorts.
+- **Tri Chronologique** : Les vidéos de toutes les chaînes suivies sont désormais triées par date de publication.
+- **Résolution d'ID Améliorée** : Meilleure gestion des handles (@nom) et extraction d'ID robuste.
+
+#### ⚙️ Interface & Options
+- **Organisation des Widgets** : Possibilité de trier librement l'ordre d'affichage (YouTube, Twitch/Kick, Favoris).
+- **Interface Épurée** : Onglets séparés pour YouTube, Twitch et le Service Cloudflare.
+- **Support Multi-Navigateur** : Amélioration de la compatibilité Chrome et Firefox.
+- **Import/Export Complet** : Sauvegarde incluant désormais la configuration Twitch et l'ordre des widgets.
+
+---
+
+### EN:
+#### 🛡️ Security & Modernization
+- **Security**: Final fix for Firefox (AMO) warnings by replacing `innerHTML` and `insertAdjacentHTML` with pure DOM methods (`createElementNS`, `prepend`, `textContent`).
+- **Modernization**: Replaced all `innerHTML` occurrences with safer and faster DOM methods such as `replaceChildren()` and `textContent`.
+#### 📺 Unified Streaming
+- **Multi-Platform Widget**: Full support for **Twitch** and **Kick** on the home page.
+- **Multistream Fusion**: Automatic grouping of streams for creators broadcasting on multiple platforms (combined badges and total viewers count).
+- **Advanced Management**: Easy addition, modification, and removal of streamers from a dedicated tab.
+
+#### 🚀 Infrastructure Rework (Cloudflare Worker)
+- **Unified Worker**: A single script for YouTube, Twitch, and Kick.
+- **Enhanced Security**: API key authentication (`X-API-Key`) and a secured administration page.
+- **Automatic Sync**: Followed channels are now stored in KV (Cloudflare) for optimal performance (instant loading via cache).
+- **Automation**: Live status checks every 5 minutes (Cron Trigger).
+
+#### 📺 YouTube Improvements
+- **Radical Anti-Shorts Filtering**: New server-side detection system (HEAD request) to hide shorts.
+- **Chronological Sorting**: Videos from all followed channels are now sorted by publication date.
+- **Improved ID Resolution**: Better handling of handles (@name) and robust ID extraction.
+
+#### ⚙️ Interface & Options
+- **Widget Organization**: Freedom to sort the display order (YouTube, Twitch/Kick, Bookmarks).
+- **Clean Interface**: Separate tabs for YouTube, Twitch, and the Cloudflare Service.
+- **Multi-Browser Support**: Improved compatibility for both Chrome and Firefox.
+- **Full Import/Export**: Backups now include Twitch configuration and widget order.
+
+---
 
 ## [1.3.0] - 2026-03-24
-
-### ✨ Nouvelles fonctionnalités
-- **Bouton d'ajout YouTube direct** : Ajout d'un bouton "Ajouter à OmniMark" directement sur les pages de chaînes YouTube (à droite du bouton S'abonner/Rejoindre) pour simplifier la gestion des chaînes suivies.
-
-### 🔧 Améliorations techniques
-- **Intégration YouTube intelligente** : Détection dynamique du bouton d'abonnement et insertion robuste dans la barre d'actions, compatible avec les nouvelles interfaces YouTube (view-model).
-- **Gestion de la navigation SPA** : Utilisation d'un `MutationObserver` et d'un système de nettoyage pour assurer la présence et l'unicité du bouton lors de la navigation interne sur YouTube.
+### FR:
+- **Bouton d'ajout YouTube direct** : Ajout d'un bouton "Ajouter à OmniMark" directement sur les pages YouTube.
+- **Intégration YouTube intelligente** : Détection dynamique et insertion robuste dans la barre d'actions YouTube.
+### EN:
+- **Direct YouTube Add Button**: Added "Add to OmniMark" button directly on YouTube channel pages.
+- **Smart YouTube Integration**: Dynamic detection and robust insertion in the YouTube actions bar.
 
 ---
 
 ## [1.2.0] - 2026-03-23
-
-### ✨ Nouvelles fonctionnalités
-- **Récupération automatique du nom** : Ajout de l'extraction automatique des IDs de chaîne à partir des URLs et récupération du nom en arrière-plan lors de la migration et de la saisie manuelle.
-- **Migration intelligente** : Les listes de chaînes YouTube existantes sont désormais automatiquement mises à jour avec les noms réels via le Cloudflare Worker.
-- **Récupération d'ID manuelle** : Ajout d'un bouton pour récupérer automatiquement le nom d'une chaîne YouTube à partir de son ID lors d'un ajout manuel.
-
-### 🛡️ Sécurité
-- **Manipulation sécurisée du DOM** : Remplacement de toutes les utilisations d'`innerHTML` par des méthodes DOM sécurisées (`textContent`, `createElement`) pour répondre aux exigences de sécurité du Firefox Add-on Store.
+### FR:
+- **Récupération automatique du nom** : Extraction automatique des IDs et noms depuis les URLs.
+- **Migration intelligente** : Mise à jour automatique des noms via le Worker.
+- **Sécurité** : Remplacement d'innerHTML par des méthodes DOM sécurisées.
+### EN:
+- **Automatic Name Retrieval**: Automatic extraction of IDs and names from URLs.
+- **Smart Migration**: Automatic update of names via the Worker.
+- **Security**: Replaced innerHTML with secure DOM methods.
 
 ---
 
 ## [1.1.0] - 2026-03-23
-
-### ✨ Nouvelles fonctionnalités
-- **Widget YouTube intelligent** : Intégration d'un flux de vidéos récentes directement sur la page d'accueil.
-- **Relais Cloudflare Worker** : Utilisation d'un worker personnel pour une récupération ultra-rapide des vidéos via RSS, avec support du cache KV et des Queues pour des mises à jour régulières.
-- **Filtrage Anti-Shorts** : Le widget ignore automatiquement les YouTube Shorts pour ne garder que le contenu long format.
-- **Gestion des vidéos vues** : Possibilité de masquer les vidéos déjà regardées en un clic (stockage local jusqu'à 200 vidéos).
-- **Outil de recherche d'ID** : Système intégré pour trouver l'ID d'une chaîne YouTube simplement à partir de son handle (ex: @YouTube).
-- **Import/Export segmenté** : Possibilité de sauvegarder et restaurer les favoris/moteurs de recherche et la configuration YouTube séparément.
-- **Guide d'installation intégré** : Ajout d'un onglet d'aide complet dans les options incluant le code source du Worker et les étapes de configuration Cloudflare.
-
-### 🎨 Améliorations de l'interface
-- **Mise en page compacte** : Le widget YouTube est passé à une seule ligne horizontale avec défilement pour un encombrement minimal.
-- **Positionnement flexible** : Option pour placer le widget en haut ou en bas des favoris (bas par défaut pour une intégration fluide avec le footer).
-- **Design "Neon Night"** : Ajustement des styles, des polices et des marges pour une cohérence visuelle parfaite.
-- **Optimisation des onglets** : Noms raccourcis et ajustements CSS pour éviter le passage sur deux lignes dans les options.
-- **Structure Flexbox** : Refonte de la mise en page principale pour garantir que le widget "colle" au footer sans espace blanc parasite.
-
-### 🔧 Améliorations techniques
-- Migration de la configuration des chaînes YouTube d'un texte brut vers une liste d'objets structurés (ID + Nom).
-- Utilisation de `insertAdjacentElement` pour un positionnement DOM robuste et dynamique.
-- Réduction du poids total des vignettes et optimisation des requêtes réseau.
-- Amélioration de la gestion du cache dans le Cloudflare Worker.
+### FR:
+- **Widget YouTube** : Flux de vidéos récentes sur l'accueil.
+- **Relais Cloudflare** : Performance accrue via Worker RSS + KV.
+- **Filtrage Anti-Shorts** : Masquage automatique des shorts.
+- **Gestion des vues** : Masquage des vidéos déjà regardées.
+- **Design** : Nouveau thème "Neon Night" et organisation compacte.
+### EN:
+- **YouTube Widget**: Recent video feed on the home page.
+- **Cloudflare Relay**: Increased performance via RSS Worker + KV.
+- **Anti-Shorts Filtering**: Automatic hiding of shorts.
+- **View Management**: Option to hide already watched videos.
+- **Design**: New "Neon Night" theme and compact layout.
 
 ---
 
-## [1.0.7] - Version initiale consolidée
-- Gestion des favoris par catégories.
-- Raccourcis de recherche personnalisables.
-- Synchronisation via `browser.storage.sync`.
-- Support automatique des icônes (Favicon, Simple Icons, Logo.dev).
+## [1.0.7] - Version initiale consolidée / Initial release
+- Gestion des favoris / Bookmark management.
+- Synchronisation / Sync (`browser.storage.sync`).
+- Support icônes / Icon support (Simple Icons, Logo.dev).

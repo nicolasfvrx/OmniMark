@@ -1,6 +1,8 @@
 
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Polyfill pour browser vs chrome
+    const browser = window.browser || window.chrome;
     const grid = document.getElementById('bookmark-grid');
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
@@ -447,6 +449,239 @@ document.addEventListener('DOMContentLoaded', async () => {
         setInterval(updateFiveMStatus, 60000 * 5);
     }
 
+    // --- Widget Twitch ---
+
+    async function applyWidgetOrder() {
+        if (!settings.widgetOrder || !Array.isArray(settings.widgetOrder)) return;
+
+        settings.widgetOrder.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                // On déplace chaque élément à la fin du body (avant le script de fin)
+                // Mais pour garder l'ordre relatif, on les insère avant le footer s'il existe
+                const footer = document.getElementById('status-bar');
+                if (footer) {
+                    footer.insertAdjacentElement('beforebegin', el);
+                } else {
+                    document.body.appendChild(el);
+                }
+            }
+        });
+    }
+
+    async function updateTwitchWidget() {
+        const twitchEl = document.getElementById('twitch-widget');
+        const livesGrid = document.getElementById('twitch-lives');
+        
+        const workerUrl = settings.workerUrl || settings.twitchWorkerUrl;
+        const apiKey = settings.workerApiKey;
+
+        if (!settings.enableWidgetTwitch || !workerUrl || !twitchEl) {
+            if (twitchEl) twitchEl.style.display = 'none';
+            return;
+        }
+
+        // Positionnement du widget
+        // Si un ordre personnalisé existe, on ne touche plus aux positions top/bottom individuelles
+        if (!settings.widgetOrder) {
+            if (settings.twitchWidgetPosition === 'top') {
+                twitchEl.classList.add('pos-top');
+                twitchEl.classList.remove('pos-bottom');
+                grid.insertAdjacentElement('beforebegin', twitchEl);
+            } else {
+                twitchEl.classList.add('pos-bottom');
+                twitchEl.classList.remove('pos-top');
+                const footer = document.getElementById('status-bar');
+                if (footer) {
+                    footer.insertAdjacentElement('beforebegin', twitchEl);
+                } else {
+                    grid.insertAdjacentElement('afterend', twitchEl);
+                }
+            }
+        }
+
+        twitchEl.style.display = 'block';
+        livesGrid.replaceChildren();
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'twitch-loading';
+        loadingDiv.textContent = 'Recherche des lives en cours...';
+        livesGrid.appendChild(loadingDiv);
+
+        try {
+            const channels = settings.twitchChannels || [];
+            if (channels.length === 0) {
+                livesGrid.replaceChildren();
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'twitch-error';
+                emptyDiv.textContent = 'Aucun streamer configuré.';
+                livesGrid.appendChild(emptyDiv);
+                return;
+            }
+
+            const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+            let finalUrl;
+
+            if (settings.workerUrl) {
+                const url = new URL(`${cleanWorkerUrl}/streams`);
+                if (apiKey) url.searchParams.set('key', apiKey);
+                finalUrl = url.toString();
+            } else {
+                const url = new URL(cleanWorkerUrl);
+                const channelsParam = channels.map(c => {
+                    if (typeof c === 'string') return `${c}:twitch`;
+                    return `${c.name}:${c.platform}`;
+                }).join(',');
+                url.searchParams.set('channels', channelsParam);
+                finalUrl = url.toString();
+            }
+
+            const response = await fetch(finalUrl);
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || `HTTP ${response.status}`);
+            }
+            
+            let rawStreams = await response.json();
+            if (!Array.isArray(rawStreams)) rawStreams = [];
+
+            // Regroupement par pseudo (user_login)
+            const groupedStreams = {};
+            rawStreams.forEach(s => {
+                const key = s.user_login.toLowerCase();
+                if (!groupedStreams[key]) {
+                    groupedStreams[key] = {
+                        ...s,
+                        platforms: [s.platform]
+                    };
+                } else {
+                    // Si déjà présent, on ajoute la plateforme et on cumule les spectateurs
+                    if (!groupedStreams[key].platforms.includes(s.platform)) {
+                        groupedStreams[key].platforms.push(s.platform);
+                    }
+                    groupedStreams[key].viewer_count += (s.viewer_count || 0);
+                    // On privilégie Twitch pour les infos de base (titre, jeu, miniature) si disponible
+                    if (s.platform === 'twitch') {
+                        groupedStreams[key].title = s.title;
+                        groupedStreams[key].game_name = s.game_name;
+                        groupedStreams[key].thumbnail_url = s.thumbnail_url;
+                        groupedStreams[key].user_name = s.user_name;
+                    }
+                }
+            });
+
+            const streams = Object.values(groupedStreams);
+
+            if (streams.length === 0) {
+                livesGrid.replaceChildren();
+                const noneFoundDiv = document.createElement('div');
+                noneFoundDiv.className = 'twitch-error';
+                noneFoundDiv.textContent = 'Aucun live en cours.';
+                livesGrid.appendChild(noneFoundDiv);
+                return;
+            }
+
+            livesGrid.replaceChildren();
+            
+            streams.forEach(stream => {
+                const card = document.createElement('a');
+                const isKickOnly = stream.platforms.length === 1 && stream.platforms[0] === 'kick';
+                card.className = `twitch-card ${isKickOnly ? 'kick-card' : ''}`;
+                if (stream.platforms.length > 1) card.classList.add('multi-platform-card');
+
+                const hasTwitch = stream.platforms.includes('twitch');
+                const baseUrl = hasTwitch ? 'https://www.twitch.tv/' : 'https://kick.com/';
+                card.href = `${baseUrl}${stream.user_login}`;
+                card.target = '_blank';
+                
+                const thumbContainer = document.createElement('div');
+                thumbContainer.className = 'twitch-thumbnail-container';
+                
+                const thumb = document.createElement('div');
+                thumb.className = 'twitch-thumbnail';
+                // Remplacer les placeholders {width} et {height} pour Twitch
+                let thumbUrl = stream.thumbnail_url || '';
+                if (hasTwitch && thumbUrl.includes('{width}')) {
+                    thumbUrl = thumbUrl.replace('{width}', '400').replace('{height}', '225');
+                }
+                thumb.style.backgroundImage = `url(${thumbUrl})`;
+                
+                const liveBadge = document.createElement('div');
+                liveBadge.className = 'twitch-live-badge';
+                liveBadge.textContent = 'LIVE';
+                
+                const badgesContainer = document.createElement('div');
+                badgesContainer.className = 'platform-badges-container';
+                
+                stream.platforms.sort().forEach(p => {
+                    const badge = document.createElement('div');
+                    badge.className = `platform-badge ${p}-badge`;
+                    badge.textContent = p;
+                    badgesContainer.appendChild(badge);
+                });
+                
+                const viewers = document.createElement('div');
+                viewers.className = 'twitch-viewer-count';
+                viewers.textContent = `${stream.viewer_count.toLocaleString()} spectateurs`;
+                
+                thumbContainer.appendChild(thumb);
+                thumbContainer.appendChild(liveBadge);
+                thumbContainer.appendChild(badgesContainer);
+                thumbContainer.appendChild(viewers);
+                
+                const info = document.createElement('div');
+                info.className = 'twitch-info';
+                
+                const title = document.createElement('div');
+                title.className = 'twitch-title';
+                title.textContent = stream.title;
+                title.title = stream.title;
+                
+                const meta = document.createElement('div');
+                meta.className = 'twitch-meta';
+                
+                const channel = document.createElement('span');
+                channel.className = `twitch-channel ${isKickOnly ? 'kick-channel' : ''}`;
+                if (stream.platforms.length > 1) channel.classList.add('multi-platform-channel');
+                channel.textContent = stream.user_name;
+                
+                const game = document.createElement('span');
+                game.className = 'twitch-game';
+                game.textContent = stream.game_name;
+                
+                meta.appendChild(channel);
+                meta.appendChild(game);
+                info.appendChild(title);
+                info.appendChild(meta);
+                
+                card.appendChild(thumbContainer);
+                card.appendChild(info);
+                
+                livesGrid.appendChild(card);
+            });
+
+        } catch (e) {
+            console.error('Erreur Twitch:', e);
+            livesGrid.replaceChildren();
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'twitch-error';
+            errorDiv.textContent = `Erreur : ${e.message}`;
+            livesGrid.appendChild(errorDiv);
+        }
+    }
+
+    if (settings.enableWidgetTwitch) {
+        updateTwitchWidget();
+        const refreshBtn = document.getElementById('refresh-twitch');
+        if (refreshBtn) {
+            refreshBtn.onclick = updateTwitchWidget;
+        }
+        // Rafraîchir toutes les 5 minutes
+        setInterval(updateTwitchWidget, 60000 * 5);
+    }
+
+    // Appliquer l'ordre des widgets après avoir chargé les favoris
+    applyWidgetOrder();
+
     // --- Widget YouTube ---
 
     async function updateYoutubeWidget() {
@@ -454,29 +689,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         const videosGrid = document.getElementById('youtube-videos');
         const refreshBtn = document.getElementById('refresh-youtube');
 
-        if (!settings.enableWidgetYoutube || !settings.youtubeWorkerUrl || !youtubeEl) {
+        const workerUrl = settings.workerUrl || settings.youtubeWorkerUrl;
+        const apiKey = settings.workerApiKey;
+
+        if (!settings.enableWidgetYoutube || !workerUrl || !youtubeEl) {
             if (youtubeEl) youtubeEl.style.display = 'none';
             return;
         }
 
         // Positionnement du widget (bottom par défaut)
-        if (settings.youtubeWidgetPosition === 'top') {
-            youtubeEl.classList.add('pos-top');
-            youtubeEl.classList.remove('pos-bottom');
-            grid.insertAdjacentElement('beforebegin', youtubeEl);
-        } else {
-            youtubeEl.classList.add('pos-bottom');
-            youtubeEl.classList.remove('pos-top');
-            const footer = document.getElementById('status-bar');
-            if (footer) {
-                footer.insertAdjacentElement('beforebegin', youtubeEl);
+        // Si un ordre personnalisé existe, on ne touche plus aux positions top/bottom individuelles
+        if (!settings.widgetOrder) {
+            if (settings.youtubeWidgetPosition === 'top') {
+                youtubeEl.classList.add('pos-top');
+                youtubeEl.classList.remove('pos-bottom');
+                grid.insertAdjacentElement('beforebegin', youtubeEl);
             } else {
-                grid.insertAdjacentElement('afterend', youtubeEl);
+                youtubeEl.classList.add('pos-bottom');
+                youtubeEl.classList.remove('pos-top');
+                const footer = document.getElementById('status-bar');
+                if (footer) {
+                    footer.insertAdjacentElement('beforebegin', youtubeEl);
+                } else {
+                    grid.insertAdjacentElement('afterend', youtubeEl);
+                }
             }
         }
 
         youtubeEl.style.display = 'block';
-        videosGrid.innerHTML = '';
+        videosGrid.replaceChildren();
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'youtube-loading';
         loadingDiv.textContent = 'Chargement des vidéos...';
@@ -494,7 +735,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (channels.length === 0) {
-                videosGrid.innerHTML = '';
+                videosGrid.replaceChildren();
                 const emptyDiv = document.createElement('div');
                 emptyDiv.className = 'youtube-error';
                 emptyDiv.textContent = 'Aucune chaîne configurée.';
@@ -502,19 +743,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            const url = new URL(settings.youtubeWorkerUrl);
-            url.searchParams.set('channels', channels.join(','));
+            const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+            let finalUrl;
 
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Erreur lors de la récupération');
+            if (settings.workerUrl) {
+                finalUrl = `${cleanWorkerUrl}/youtube${apiKey ? `?key=${encodeURIComponent(apiKey)}` : ''}`;
+            } else {
+                finalUrl = `${cleanWorkerUrl}?channels=${encodeURIComponent(channels.map(c => typeof c === 'string' ? c : c.id).join(','))}`;
+            }
+
+            const response = await fetch(finalUrl);
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || `HTTP ${response.status}`);
+            }
             
             let videos = await response.json();
+            if (!Array.isArray(videos)) videos = [];
             
-            // Filtrer les vidéos déjà vues
-            videos = videos.filter(v => !watchedVideos.includes(v.id));
+            // Filtrer les vidéos déjà vues et les shorts (sécurité supplémentaire)
+            videos = videos.filter(v => v && v.id && !watchedVideos.includes(v.id) && !v.title?.toLowerCase().includes('shorts') && !v.link?.includes('/shorts/'));
+
+            // Trier par date de publication (plus récent en premier)
+            videos.sort((a, b) => {
+                const dateA = new Date(a.published || 0);
+                const dateB = new Date(b.published || 0);
+                return dateB - dateA;
+            });
 
             if (videos.length === 0) {
-                videosGrid.innerHTML = '';
+                videosGrid.replaceChildren();
                 const noneFoundDiv = document.createElement('div');
                 noneFoundDiv.className = 'youtube-error';
                 noneFoundDiv.textContent = 'Aucune nouvelle vidéo trouvée.';
@@ -522,7 +780,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            videosGrid.innerHTML = '';
+            videosGrid.replaceChildren();
             
             videos.forEach(video => {
                 const card = document.createElement('div');
@@ -551,7 +809,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     card.remove();
                     if (videosGrid.children.length === 0) {
-                        videosGrid.innerHTML = '';
+                        videosGrid.replaceChildren();
                         const allSeenDiv = document.createElement('div');
                         allSeenDiv.className = 'youtube-error';
                         allSeenDiv.textContent = 'Toutes les vidéos ont été vues !';
@@ -597,7 +855,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (e) {
             console.error('Erreur YouTube:', e);
-            videosGrid.innerHTML = '';
+            videosGrid.replaceChildren();
             const errorDiv = document.createElement('div');
             errorDiv.className = 'youtube-error';
             errorDiv.textContent = `Impossible de charger les vidéos : ${e.message}`;

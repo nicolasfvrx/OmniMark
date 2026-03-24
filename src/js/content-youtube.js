@@ -129,8 +129,17 @@
             btn.id = 'omnimark-add-channel';
             btn.className = 'omnimark-add-btn' + (alreadyAdded ? ' added' : '');
             
-            const icon = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
-            btn.innerHTML = `${icon} <span>${alreadyAdded ? 'Dans OmniMark' : 'Ajouter à OmniMark'}</span>`;
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("viewBox", "0 0 24 24");
+            svg.setAttribute("width", "18");
+            svg.setAttribute("height", "18");
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z");
+            svg.appendChild(path);
+            btn.prepend(svg);
+            const label = document.createElement('span');
+            label.textContent = alreadyAdded ? 'Dans OmniMark' : 'Ajouter à OmniMark';
+            btn.appendChild(label);
 
             if (!alreadyAdded) {
                 btn.onclick = async (e) => {

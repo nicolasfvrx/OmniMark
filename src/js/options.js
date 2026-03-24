@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Polyfill pour browser vs chrome
+    const browser = window.browser || window.chrome;
+    
+    console.log('OmniMark: Options page loaded');
     const dataList = document.getElementById('data-list');
     const catSelect = document.getElementById('link-cat-select');
     const addCatBtn = document.getElementById('add-cat');
@@ -43,9 +47,261 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enableStatusFiveM = document.getElementById('enable-status-fivem');
     const enableWidgetYoutube = document.getElementById('enable-widget-youtube');
     const youtubeConfig = document.getElementById('youtube-config');
-    const youtubeWorkerUrl = document.getElementById('youtube-worker-url');
     const youtubeChannelsList = document.getElementById('youtube-channels-list');
     const youtubePosition = document.getElementById('youtube-position');
+
+    const enableWidgetTwitch = document.getElementById('enable-widget-twitch');
+    const twitchConfig = document.getElementById('twitch-config');
+    const twitchChannelsList = document.getElementById('twitch-channels-list');
+    const twitchPosition = document.getElementById('twitch-position');
+    const addTwitchChannelBtn = document.getElementById('add-twitch-channel-btn');
+    const cancelTwitchEditBtn = document.getElementById('cancel-twitch-edit-btn');
+    const newTwitchChannelInput = document.getElementById('new-twitch-channel');
+    const newTwitchPlatformSelect = document.getElementById('new-twitch-platform');
+
+    // Central Worker Configuration
+    const workerUrlInput = document.getElementById('worker-url');
+    const workerApiKeyInput = document.getElementById('worker-api-key');
+    const testWorkerBtn = document.getElementById('test-worker-btn');
+    const workerStatusMsg = document.getElementById('worker-status-msg');
+    const workerAdminLink = document.getElementById('worker-admin-link');
+    const adminPageUrl = document.getElementById('admin-page-url');
+    const copyUnifiedWorkerCodeBtn = document.getElementById('copy-unified-worker-code');
+
+    let editingTwitchIndex = -1;
+
+    const widgetOrderList = document.getElementById('widget-order-list');
+
+    const WIDGET_LABELS = {
+        'twitch-widget': 'Widget Twitch',
+        'youtube-widget': 'Widget YouTube',
+        'bookmark-grid': 'Favoris & Catégories'
+    };
+
+    async function syncChannelsToWorker(type) {
+        const result = await browser.storage.sync.get('settings');
+        const settings = result.settings || {};
+        
+        const workerUrl = settings.workerUrl;
+        const apiKey = settings.workerApiKey;
+
+        if (!workerUrl || !apiKey) return;
+
+        const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
+        const endpoint = `${cleanWorkerUrl}/config/channels`;
+
+        let data = {};
+        if (type === 'twitch' || type === 'all') {
+            data.twitch = settings.twitchChannels || [];
+        }
+        if (type === 'youtube' || type === 'all') {
+            data.youtube = settings.youtubeChannels || [];
+        }
+
+        try {
+            await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify(data)
+            });
+        } catch (e) {
+            console.error(`Erreur synchronisation ${type}:`, e);
+        }
+    }
+
+    async function renderWidgetOrder() {
+        if (!widgetOrderList) return;
+
+        const result = await browser.storage.sync.get('settings');
+        const settings = result.settings || {};
+        
+        // Ordre par défaut s'il n'existe pas
+        let order = settings.widgetOrder || ['twitch-widget', 'youtube-widget', 'bookmark-grid'];
+        
+        // S'assurer que tous les widgets sont présents dans l'ordre (au cas où on en ajoute des nouveaux plus tard)
+        Object.keys(WIDGET_LABELS).forEach(id => {
+            if (!order.includes(id)) order.push(id);
+        });
+
+        widgetOrderList.replaceChildren();
+
+        order.forEach((id, index) => {
+            const isEnabled = id === 'bookmark-grid' || 
+                             (id === 'twitch-widget' && settings.enableWidgetTwitch) || 
+                             (id === 'youtube-widget' && settings.enableWidgetYoutube);
+
+            const item = document.createElement('div');
+            item.className = `widget-order-item ${isEnabled ? '' : 'disabled'}`;
+            
+            const name = document.createElement('span');
+            name.className = 'widget-name';
+            name.textContent = WIDGET_LABELS[id] || id;
+            
+            const controls = document.createElement('div');
+            controls.className = 'widget-controls';
+            
+            const upBtn = document.createElement('button');
+            upBtn.className = 'move-btn';
+            upBtn.textContent = '↑';
+            upBtn.disabled = index === 0;
+            upBtn.onclick = () => moveWidget(index, -1);
+            
+            const downBtn = document.createElement('button');
+            downBtn.className = 'move-btn';
+            downBtn.textContent = '↓';
+            downBtn.disabled = index === order.length - 1;
+            downBtn.onclick = () => moveWidget(index, 1);
+            
+            controls.appendChild(upBtn);
+            controls.appendChild(downBtn);
+            
+            item.appendChild(name);
+            item.appendChild(controls);
+            widgetOrderList.appendChild(item);
+        });
+    }
+
+    async function moveWidget(index, direction) {
+        const result = await browser.storage.sync.get('settings');
+        const settings = result.settings || {};
+        let order = settings.widgetOrder || ['twitch-widget', 'youtube-widget', 'bookmark-grid'];
+        
+        const newIndex = index + direction;
+        if (newIndex >= 0 && newIndex < order.length) {
+            const temp = order[index];
+            order[index] = order[newIndex];
+            order[newIndex] = temp;
+            
+            settings.widgetOrder = order;
+            await browser.storage.sync.set({ settings });
+            renderWidgetOrder();
+        }
+    }
+
+    async function renderTwitchChannels() {
+        if (!twitchChannelsList) return;
+        
+        const result = await browser.storage.sync.get('settings');
+        const settings = result.settings || {};
+        let channels = settings.twitchChannels || [];
+        
+        // Migration de l'ancien format (string) vers le nouveau format (object)
+        if (channels.length > 0 && typeof channels[0] === 'string') {
+            channels = channels.map(name => ({ name, platform: 'twitch' }));
+            settings.twitchChannels = channels;
+            await browser.storage.sync.set({ settings });
+        }
+        
+        twitchChannelsList.replaceChildren();
+
+        if (channels.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'youtube-list-empty';
+            emptyDiv.textContent = 'Aucun streamer configuré.';
+            twitchChannelsList.appendChild(emptyDiv);
+            return;
+        }
+
+        channels.forEach((channel, index) => {
+            const item = document.createElement('div');
+            item.className = 'youtube-list-item';
+            
+            const info = document.createElement('div');
+            info.className = 'channel-info';
+            info.style.display = 'flex';
+            info.style.alignItems = 'center';
+            info.style.gap = '8px';
+            
+            const platformIcon = document.createElement('span');
+            platformIcon.style.fontSize = '12px';
+            platformIcon.style.padding = '2px 6px';
+            platformIcon.style.borderRadius = '4px';
+            platformIcon.style.fontWeight = 'bold';
+            platformIcon.style.textTransform = 'uppercase';
+            
+            if (channel.platform === 'kick') {
+                platformIcon.textContent = 'Kick';
+                platformIcon.style.background = '#53fc18';
+                platformIcon.style.color = '#000';
+            } else if (channel.platform === 'both') {
+                platformIcon.textContent = 'Twitch+Kick';
+                platformIcon.style.background = 'linear-gradient(90deg, #9146ff 0%, #53fc18 100%)';
+                platformIcon.style.color = '#fff';
+            } else {
+                platformIcon.textContent = 'Twitch';
+                platformIcon.style.background = '#9146ff';
+                platformIcon.style.color = '#fff';
+            }
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'channel-name';
+            nameSpan.textContent = channel.name;
+            
+            info.appendChild(platformIcon);
+            info.appendChild(nameSpan);
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'move-btn';
+            editBtn.textContent = '✎';
+            editBtn.title = 'Modifier ce streamer';
+            editBtn.dataset.index = index;
+            editBtn.style.margin = '0 0 0 10px';
+            editBtn.style.padding = '5px 10px';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '✕';
+            deleteBtn.dataset.index = index;
+            deleteBtn.style.margin = '0 0 0 5px';
+            deleteBtn.style.padding = '5px 10px';
+            
+            item.appendChild(info);
+            const btnGroup = document.createElement('div');
+            btnGroup.style.display = 'flex';
+            btnGroup.appendChild(editBtn);
+            btnGroup.appendChild(deleteBtn);
+            item.appendChild(btnGroup);
+            
+            editBtn.onclick = () => {
+                editingTwitchIndex = index;
+                newTwitchChannelInput.value = channel.name;
+                newTwitchPlatformSelect.value = channel.platform || 'twitch';
+                addTwitchChannelBtn.textContent = 'Mettre à jour';
+                if (cancelTwitchEditBtn) cancelTwitchEditBtn.style.display = 'inline-block';
+                newTwitchChannelInput.focus();
+                
+                // Highlight editing item
+                document.querySelectorAll('.youtube-list-item').forEach(i => i.style.borderColor = 'rgba(255,255,255,0.1)');
+                item.style.borderColor = 'var(--primary-color)';
+            };
+            
+            deleteBtn.onclick = async () => {
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                let currentChannels = s.twitchChannels || [];
+                
+                currentChannels.splice(index, 1);
+                s.twitchChannels = currentChannels;
+                await browser.storage.sync.set({ settings: s });
+                
+                // Synchroniser avec le worker
+                await syncChannelsToWorker('twitch');
+
+                // Réinitialiser l'édition si on supprime
+                editingTwitchIndex = -1;
+                newTwitchChannelInput.value = '';
+                addTwitchChannelBtn.textContent = 'Ajouter';
+                if (cancelTwitchEditBtn) cancelTwitchEditBtn.style.display = 'none';
+                
+                renderTwitchChannels();
+            };
+            
+            twitchChannelsList.appendChild(item);
+        });
+    }
 
     async function renderYoutubeChannels() {
         if (!youtubeChannelsList) return;
@@ -57,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Migration de l'ancien format (string) vers le nouveau format (array)
         if (typeof channels === 'string') {
             const ids = channels.split(',').map(s => s.trim()).filter(s => s);
-            const workerUrl = settings.youtubeWorkerUrl;
+            const workerUrl = settings.workerUrl || settings.youtubeWorkerUrl;
             
             // On convertit d'abord avec les IDs comme noms
             channels = ids.map(id => ({ id, name: id }));
@@ -69,7 +325,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // On fait ça en arrière-plan pour ne pas bloquer l'affichage initial
                 Promise.all(ids.map(async (id) => {
                     try {
-                        const response = await fetch(`${cleanWorkerUrl}?id=${encodeURIComponent(id)}`);
+                        const apiKey = settings.workerApiKey;
+                        const finalUrl = `${cleanWorkerUrl}/youtube?id=${encodeURIComponent(id)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ''}`;
+                        const response = await fetch(finalUrl);
                         const data = await response.json();
                         return { id, name: data.name || id };
                     } catch (e) {
@@ -89,10 +347,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             await browser.storage.sync.set({ settings });
         }
 
-        youtubeChannelsList.innerHTML = '';
+        youtubeChannelsList.replaceChildren();
 
         if (channels.length === 0) {
-            youtubeChannelsList.innerHTML = '';
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'youtube-list-empty';
             emptyDiv.textContent = 'Aucune chaîne configurée.';
@@ -140,6 +397,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 currentChannels.splice(index, 1);
                 s.youtubeChannels = currentChannels;
                 await browser.storage.sync.set({ settings: s });
+                
+                // Synchroniser avec le worker
+                await syncChannelsToWorker('youtube');
+
                 renderYoutubeChannels();
             };
             
@@ -165,64 +426,92 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (settings.enableWidgetYoutube) {
-            enableWidgetYoutube.checked = true;
+            if (enableWidgetYoutube) enableWidgetYoutube.checked = true;
             if (youtubeConfig) youtubeConfig.style.display = 'block';
-        }
-
-        if (settings.youtubeWorkerUrl) {
-            youtubeWorkerUrl.value = settings.youtubeWorkerUrl;
         }
 
         await renderYoutubeChannels();
 
         if (settings.youtubeWidgetPosition) {
-            youtubePosition.value = settings.youtubeWidgetPosition;
-        } else {
+            if (youtubePosition) youtubePosition.value = settings.youtubeWidgetPosition;
+        } else if (youtubePosition) {
             youtubePosition.value = 'bottom';
         }
 
-        enableSystemSearch.onchange = async () => {
-            const isEnabled = enableSystemSearch.checked;
-            systemSearchContainer.style.display = isEnabled ? 'block' : 'none';
+        if (settings.enableWidgetTwitch) {
+            if (enableWidgetTwitch) enableWidgetTwitch.checked = true;
+            if (twitchConfig) twitchConfig.style.display = 'block';
+        }
+
+        await renderTwitchChannels();
+
+        await renderWidgetOrder();
+
+        if (settings.twitchWidgetPosition) {
+            if (twitchPosition) twitchPosition.value = settings.twitchWidgetPosition;
+        } else if (twitchPosition) {
+            twitchPosition.value = 'bottom';
+        }
+
+        // Central Worker
+        if (settings.workerUrl && workerUrlInput) {
+            workerUrlInput.value = settings.workerUrl;
             
-            const res = await browser.storage.sync.get('settings');
-            const s = res.settings || {};
-            s.enableSystemSearch = isEnabled;
-            await browser.storage.sync.set({ settings: s });
-        };
+            // Afficher le lien admin si l'URL est configurée
+            if (workerAdminLink && adminPageUrl) {
+                const cleanUrl = settings.workerUrl.endsWith('/') ? settings.workerUrl.slice(0, -1) : settings.workerUrl;
+                const key = settings.workerApiKey || '';
+                adminPageUrl.href = `${cleanUrl}/admin${key ? '?key=' + encodeURIComponent(key) : ''}`;
+                workerAdminLink.style.display = 'block';
+            }
+        }
+        if (settings.workerApiKey && workerApiKeyInput) {
+            workerApiKeyInput.value = settings.workerApiKey;
+        }
 
-        logodevToken.onchange = async () => {
-            const token = logodevToken.value.trim();
-            const res = await browser.storage.sync.get('settings');
-            const s = res.settings || {};
-            s.logoDevToken = token;
-            await browser.storage.sync.set({ settings: s });
-        };
+        if (enableSystemSearch) {
+            enableSystemSearch.onchange = async () => {
+                const isEnabled = enableSystemSearch.checked;
+                if (systemSearchContainer) systemSearchContainer.style.display = isEnabled ? 'block' : 'none';
+                
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.enableSystemSearch = isEnabled;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
 
-        enableStatusFiveM.onchange = async () => {
-            const isEnabled = enableStatusFiveM.checked;
-            const res = await browser.storage.sync.get('settings');
-            const s = res.settings || {};
-            s.enableStatusFiveM = isEnabled;
-            await browser.storage.sync.set({ settings: s });
-        };
+        if (logodevToken) {
+            logodevToken.onchange = async () => {
+                const token = logodevToken.value.trim();
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.logoDevToken = token;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
 
-        enableWidgetYoutube.onchange = async () => {
-            const isEnabled = enableWidgetYoutube.checked;
-            youtubeConfig.style.display = isEnabled ? 'block' : 'none';
-            const res = await browser.storage.sync.get('settings');
-            const s = res.settings || {};
-            s.enableWidgetYoutube = isEnabled;
-            await browser.storage.sync.set({ settings: s });
-        };
+        if (enableStatusFiveM) {
+            enableStatusFiveM.onchange = async () => {
+                const isEnabled = enableStatusFiveM.checked;
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.enableStatusFiveM = isEnabled;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
 
-        youtubeWorkerUrl.onchange = async () => {
-            const url = youtubeWorkerUrl.value.trim();
-            const res = await browser.storage.sync.get('settings');
-            const s = res.settings || {};
-            s.youtubeWorkerUrl = url;
-            await browser.storage.sync.set({ settings: s });
-        };
+        if (enableWidgetYoutube) {
+            enableWidgetYoutube.onchange = async () => {
+                const isEnabled = enableWidgetYoutube.checked;
+                if (youtubeConfig) youtubeConfig.style.display = isEnabled ? 'block' : 'none';
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.enableWidgetYoutube = isEnabled;
+                await browser.storage.sync.set({ settings: s });
+                renderWidgetOrder();
+            };
+        }
 
         const addChannelBtn = document.getElementById('add-channel-btn');
         const getChannelNameBtn = document.getElementById('get-channel-name-btn');
@@ -249,7 +538,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (getChannelNameBtn) {
             getChannelNameBtn.onclick = async () => {
                 const id = newChannelId.value.trim();
-                const workerUrl = youtubeWorkerUrl.value.trim();
+                const workerUrl = workerUrlInput ? workerUrlInput.value.trim() : '';
+                const apiKey = workerApiKeyInput ? workerApiKeyInput.value.trim() : '';
 
                 if (!workerUrl) {
                     alert('Veuillez d\'abord renseigner l\'URL de votre Cloudflare Worker.');
@@ -269,8 +559,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 try {
                     const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
-                    const response = await fetch(`${cleanWorkerUrl}?id=${encodeURIComponent(id)}`);
+                    const finalUrl = `${cleanWorkerUrl}/youtube?id=${encodeURIComponent(id)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ''}`;
+
+                    const response = await fetch(finalUrl);
                     const data = await response.json();
+
+                    if (!response.ok) {
+                        alert(data.error || `Erreur ${response.status}`);
+                        return;
+                    }
 
                     if (data.name) {
                         newChannelName.value = data.name;
@@ -303,16 +600,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Si le nom est vide, on tente de le récupérer automatiquement
                 if (!name) {
-                    const workerUrl = youtubeWorkerUrl.value.trim();
+                    const workerUrl = workerUrlInput ? workerUrlInput.value.trim() : '';
+                    const apiKey = workerApiKeyInput ? workerApiKeyInput.value.trim() : '';
+
                     if (workerUrl) {
                         addChannelBtn.disabled = true;
                         addChannelBtn.textContent = '...';
                         try {
                             const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
-                            const response = await fetch(`${cleanWorkerUrl}?id=${encodeURIComponent(id)}`);
-                            const data = await response.json();
-                            if (data.name) {
-                                name = data.name;
+                            const finalUrl = `${cleanWorkerUrl}/youtube?id=${encodeURIComponent(id)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ''}`;
+
+                            const response = await fetch(finalUrl);
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.name) {
+                                    name = data.name;
+                                }
                             }
                         } catch (e) {
                             console.error("Erreur récupération nom auto:", e);
@@ -343,19 +646,96 @@ document.addEventListener('DOMContentLoaded', async () => {
                 s.youtubeChannels = channels;
                 await browser.storage.sync.set({ settings: s });
                 
+                // Synchroniser avec le worker
+                await syncChannelsToWorker('youtube');
+
                 newChannelName.value = '';
                 newChannelId.value = '';
                 renderYoutubeChannels();
             };
         }
 
-        youtubePosition.onchange = async () => {
-            const position = youtubePosition.value;
-            const res = await browser.storage.sync.get('settings');
-            const s = res.settings || {};
-            s.youtubeWidgetPosition = position;
-            await browser.storage.sync.set({ settings: s });
-        };
+        if (youtubePosition) {
+            youtubePosition.onchange = async () => {
+                const position = youtubePosition.value;
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.youtubeWidgetPosition = position;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
+
+        if (enableWidgetTwitch) {
+            enableWidgetTwitch.onchange = async () => {
+                const isEnabled = enableWidgetTwitch.checked;
+                if (twitchConfig) twitchConfig.style.display = isEnabled ? 'block' : 'none';
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.enableWidgetTwitch = isEnabled;
+                await browser.storage.sync.set({ settings: s });
+                renderWidgetOrder();
+            };
+        }
+
+        if (addTwitchChannelBtn) {
+            addTwitchChannelBtn.onclick = async () => {
+                const name = newTwitchChannelInput.value.trim().toLowerCase();
+                const platform = newTwitchPlatformSelect ? newTwitchPlatformSelect.value : 'twitch';
+                if (!name) return;
+
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                let channels = s.twitchChannels || [];
+                
+                // Migration si nécessaire au moment de l'ajout
+                if (channels.length > 0 && typeof channels[0] === 'string') {
+                    channels = channels.map(n => ({ name: n, platform: 'twitch' }));
+                }
+
+                if (editingTwitchIndex > -1) {
+                    // Mode modification
+                    channels[editingTwitchIndex] = { name, platform };
+                    editingTwitchIndex = -1;
+                    addTwitchChannelBtn.textContent = 'Ajouter';
+                    if (cancelTwitchEditBtn) cancelTwitchEditBtn.style.display = 'none';
+                } else {
+                    // Mode ajout
+                    if (channels.some(c => c.name === name && c.platform === platform)) {
+                        alert('Ce streamer avec cette plateforme est déjà dans votre liste.');
+                        return;
+                    }
+                    channels.push({ name, platform });
+                }
+
+                s.twitchChannels = channels;
+                await browser.storage.sync.set({ settings: s });
+                
+                // Synchroniser avec le worker
+                await syncChannelsToWorker('twitch');
+
+                newTwitchChannelInput.value = '';
+                renderTwitchChannels();
+            };
+        }
+
+        if (cancelTwitchEditBtn) {
+            cancelTwitchEditBtn.onclick = () => {
+                editingTwitchIndex = -1;
+                newTwitchChannelInput.value = '';
+                addTwitchChannelBtn.textContent = 'Ajouter';
+                cancelTwitchEditBtn.style.display = 'none';
+            };
+        }
+
+        if (twitchPosition) {
+            twitchPosition.onchange = async () => {
+                const position = twitchPosition.value;
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.twitchWidgetPosition = position;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
 
         const clearWatchedBtn = document.getElementById('clear-watched-videos');
         if (clearWatchedBtn) {
@@ -372,19 +752,106 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
         }
 
-        // Fonctionnalité "Copier le code" pour le Worker
-        const copyCodeBtn = document.getElementById('copy-worker-code');
-        if (copyCodeBtn) {
-            copyCodeBtn.onclick = () => {
-                const code = document.getElementById('worker-code-display').innerText;
+        // Central Worker Logic
+        if (workerUrlInput) {
+            workerUrlInput.onchange = async () => {
+                const url = workerUrlInput.value.trim();
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.workerUrl = url;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
+
+        if (workerApiKeyInput) {
+            workerApiKeyInput.onchange = async () => {
+                const key = workerApiKeyInput.value.trim();
+                const res = await browser.storage.sync.get('settings');
+                const s = res.settings || {};
+                s.workerApiKey = key;
+                await browser.storage.sync.set({ settings: s });
+            };
+        }
+
+        if (testWorkerBtn) {
+            console.log('OmniMark: Test button found and listener attached');
+            testWorkerBtn.onclick = async () => {
+                console.log('OmniMark: Test button clicked');
+                const url = workerUrlInput ? workerUrlInput.value.trim() : '';
+                const key = workerApiKeyInput ? workerApiKeyInput.value.trim() : '';
+
+                if (!url) {
+                    if (workerStatusMsg) {
+                        workerStatusMsg.textContent = '❌ Veuillez entrer une URL';
+                        workerStatusMsg.style.color = '#f44336';
+                    }
+                    return;
+                }
+
+                if (workerStatusMsg) {
+                    workerStatusMsg.textContent = '⏳ Test en cours...';
+                    workerStatusMsg.style.color = 'var(--secondary-color)';
+                }
+
+                try {
+                    const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+                    const testUrl = `${cleanUrl}/test${key ? `?key=${encodeURIComponent(key)}` : ''}`;
+                    console.log('OmniMark: Fetching', testUrl);
+                    
+                    const response = await fetch(testUrl);
+                    console.log('OmniMark: Response status', response.status);
+                    
+                    if (response.ok) {
+                        if (workerStatusMsg) {
+                            workerStatusMsg.textContent = '✅ Connexion réussie !';
+                            workerStatusMsg.style.color = '#53fc18';
+                        }
+                        
+                        // Synchroniser les chaînes
+                        await syncChannelsToWorker('all');
+
+                        if (workerAdminLink && adminPageUrl) {
+                            const adminUrl = `${cleanUrl}/admin${key ? '?key=' + encodeURIComponent(key) : ''}`;
+                            adminPageUrl.href = adminUrl;
+                            workerAdminLink.style.display = 'block';
+                        }
+                    } else if (response.status === 401) {
+                        if (workerStatusMsg) {
+                            workerStatusMsg.textContent = '❌ Erreur 401 : Clé API invalide';
+                            workerStatusMsg.style.color = '#ff9800';
+                        }
+                        if (workerAdminLink) workerAdminLink.style.display = 'none';
+                    } else {
+                        if (workerStatusMsg) {
+                            workerStatusMsg.textContent = `❌ Erreur ${response.status}`;
+                            workerStatusMsg.style.color = '#f44336';
+                        }
+                        if (workerAdminLink) workerAdminLink.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error('OmniMark: Test connection error', e);
+                    if (workerStatusMsg) {
+                        workerStatusMsg.textContent = '❌ Impossible de contacter le worker (CORS ou URL invalide)';
+                        workerStatusMsg.style.color = '#f44336';
+                    }
+                    if (workerAdminLink) workerAdminLink.style.display = 'none';
+                }
+            };
+        }
+
+        if (copyUnifiedWorkerCodeBtn) {
+            copyUnifiedWorkerCodeBtn.onclick = () => {
+                const codeElement = document.getElementById('unified-worker-code-display');
+                if (!codeElement) return;
+                const code = codeElement.innerText;
                 navigator.clipboard.writeText(code).then(() => {
-                    const originalText = copyCodeBtn.innerText;
-                    copyCodeBtn.innerText = 'Copié !';
-                    const originalBg = copyCodeBtn.style.background;
-                    copyCodeBtn.style.background = '#4caf50';
+                    const originalText = copyUnifiedWorkerCodeBtn.innerText;
+                    copyUnifiedWorkerCodeBtn.innerText = 'Copié !';
+                    const originalBg = copyUnifiedWorkerCodeBtn.style.background;
+                    copyUnifiedWorkerCodeBtn.style.background = '#4caf50';
                     setTimeout(() => {
-                        copyCodeBtn.innerText = originalText;
-                        copyCodeBtn.style.background = originalBg;
+                        copyUnifiedWorkerCodeBtn.innerText = originalText;
+                        copyUnifiedWorkerCodeBtn.style.background = originalBg;
                     }, 2000);
                 });
             };
@@ -396,7 +863,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (findYoutubeIdBtn) {
             findYoutubeIdBtn.onclick = async () => {
-                const workerUrl = youtubeWorkerUrl.value.trim();
+                const workerUrl = workerUrlInput ? workerUrlInput.value.trim() : '';
+                const apiKey = workerApiKeyInput ? workerApiKeyInput.value.trim() : '';
                 const handle = handleInput.value.trim();
 
                 if (!workerUrl) {
@@ -413,8 +881,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 try {
                     const cleanWorkerUrl = workerUrl.endsWith('/') ? workerUrl.slice(0, -1) : workerUrl;
-                    const response = await fetch(`${cleanWorkerUrl}?handle=${encodeURIComponent(handle)}`);
+                    const finalUrl = `${cleanWorkerUrl}/youtube?handle=${encodeURIComponent(handle)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ''}`;
+
+                    const response = await fetch(finalUrl);
                     const data = await response.json();
+
+                    if (!response.ok) {
+                        handleResult.textContent = data.error || `Erreur ${response.status}`;
+                        handleResult.style.color = '#e74c3c';
+                        return;
+                    }
 
                     if (data.channelId) {
                         const channelName = data.name || handle;
@@ -444,6 +920,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             current.push({ id: data.channelId, name: channelName });
                             s.youtubeChannels = current;
                             await browser.storage.sync.set({ settings: s });
+                            
+                            // Synchroniser avec le worker
+                            await syncChannelsToWorker('youtube');
                             
                             renderYoutubeChannels();
                             handleResult.textContent = 'Chaîne ajoutée !';
@@ -969,8 +1448,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Gestion de l'Export / Import
     const exportBookmarksBtn = document.getElementById('export-bookmarks-btn');
     const importBookmarksBtn = document.getElementById('import-bookmarks-btn');
+    const exportServiceBtn = document.getElementById('export-service-btn');
+    const importServiceBtn = document.getElementById('import-service-btn');
     const exportYoutubeBtn = document.getElementById('export-youtube-btn');
     const importYoutubeBtn = document.getElementById('import-youtube-btn');
+    const exportTwitchBtn = document.getElementById('export-twitch-btn');
+    const importTwitchBtn = document.getElementById('import-twitch-btn');
     const exportBtn = document.getElementById('export-btn');
     const importBtn = document.getElementById('import-btn');
     const importFile = document.getElementById('import-file');
@@ -1022,6 +1505,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
 
+    if (exportServiceBtn) {
+        exportServiceBtn.onclick = async () => {
+            try {
+                const syncData = await browser.storage.sync.get('settings');
+                const serviceSettings = {};
+                if (syncData.settings) {
+                    ['workerUrl', 'workerApiKey'].forEach(key => {
+                        if (syncData.settings[key] !== undefined) serviceSettings[key] = syncData.settings[key];
+                    });
+                }
+                const exportData = {
+                    settings: serviceSettings,
+                    type: 'service',
+                    version: 1,
+                    date: new Date().toISOString()
+                };
+                downloadJSON(exportData, `omnimark_service_${new Date().toISOString().split('T')[0]}.json`);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Erreur lors de l\'exportation : ' + err.message);
+            }
+        };
+    }
+
+    if (importServiceBtn) {
+        importServiceBtn.onclick = () => {
+            importType = 'service';
+            importFile.click();
+        };
+    }
+
     if (exportYoutubeBtn) {
         exportYoutubeBtn.onclick = async () => {
             try {
@@ -1029,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const localData = await browser.storage.local.get('watchedVideos');
                 const youtubeSettings = {};
                 if (syncData.settings) {
-                    ['enableWidgetYoutube', 'youtubeWorkerUrl', 'youtubeChannels', 'youtubeWidgetPosition'].forEach(key => {
+                    ['enableWidgetYoutube', 'youtubeWorkerUrl', 'youtubeChannels', 'youtubeWidgetPosition', 'widgetOrder'].forEach(key => {
                         if (syncData.settings[key] !== undefined) youtubeSettings[key] = syncData.settings[key];
                     });
                 }
@@ -1051,6 +1565,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (importYoutubeBtn) {
         importYoutubeBtn.onclick = () => {
             importType = 'youtube';
+            importFile.click();
+        };
+    }
+
+    if (exportTwitchBtn) {
+        exportTwitchBtn.onclick = async () => {
+            try {
+                const syncData = await browser.storage.sync.get('settings');
+                const twitchSettings = {};
+                if (syncData.settings) {
+                    ['enableWidgetTwitch', 'twitchWorkerUrl', 'twitchChannels', 'twitchWidgetPosition', 'widgetOrder'].forEach(key => {
+                        if (syncData.settings[key] !== undefined) twitchSettings[key] = syncData.settings[key];
+                    });
+                }
+                const exportData = {
+                    settings: twitchSettings,
+                    type: 'twitch',
+                    version: 1,
+                    date: new Date().toISOString()
+                };
+                downloadJSON(exportData, `omnimark_twitch_${new Date().toISOString().split('T')[0]}.json`);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Erreur lors de l\'exportation : ' + err.message);
+            }
+        };
+    }
+
+    if (importTwitchBtn) {
+        importTwitchBtn.onclick = () => {
+            importType = 'twitch';
             importFile.click();
         };
     }
@@ -1094,7 +1639,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     let confirmMsg = "Êtes-vous sûr de vouloir importer ces données ?";
                     if (importType === 'bookmarks') confirmMsg = "Importer uniquement les favoris ? Cela remplacera vos catégories et tuiles actuelles.";
-                    if (importType === 'youtube') confirmMsg = "Importer uniquement la configuration YouTube ? Cela remplacera votre liste de chaînes.";
+                    if (importType === 'service') confirmMsg = "Importer uniquement la configuration du Service ? Cela remplacera l'URL de votre worker et votre clé API.";
+                    if (importType === 'youtube') confirmMsg = "Importer uniquement la configuration YouTube ? Cela remplacera votre liste de chaînes et l'historique.";
+                    if (importType === 'twitch') confirmMsg = "Importer uniquement la configuration Streams (Twitch & Kick) ? Cela remplacera votre liste de streamers.";
 
                     if (confirm(confirmMsg)) {
                         if (importType === 'all') {
@@ -1126,13 +1673,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 });
                                 await browser.storage.sync.set({ settings: currentSettings });
                             }
+                        } else if (importType === 'service') {
+                            const dataToImport = backup.sync || (backup.settings ? backup : { settings: backup });
+                            if (dataToImport.settings) {
+                                const res = await browser.storage.sync.get('settings');
+                                const currentSettings = res.settings || {};
+                                ['workerUrl', 'workerApiKey'].forEach(key => {
+                                    if (dataToImport.settings[key] !== undefined) currentSettings[key] = dataToImport.settings[key];
+                                });
+                                await browser.storage.sync.set({ settings: currentSettings });
+                            }
                         } else if (importType === 'youtube') {
                             const dataToImport = backup.sync || backup;
                             if (dataToImport.settings) {
                                 const res = await browser.storage.sync.get('settings');
                                 const currentSettings = res.settings || {};
-                                // On ne merge que les clés liées à YouTube
-                                ['enableWidgetYoutube', 'youtubeWorkerUrl', 'youtubeChannels', 'youtubeWidgetPosition'].forEach(key => {
+                                // On ne merge que les clés liées à YouTube et l'ordre des widgets
+                                ['enableWidgetYoutube', 'youtubeWorkerUrl', 'youtubeChannels', 'youtubeWidgetPosition', 'widgetOrder'].forEach(key => {
                                     if (dataToImport.settings[key] !== undefined) currentSettings[key] = dataToImport.settings[key];
                                 });
                                 await browser.storage.sync.set({ settings: currentSettings });
@@ -1141,7 +1698,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                             if (localData && localData.watchedVideos) {
                                 await browser.storage.local.set({ watchedVideos: localData.watchedVideos });
                             }
+                        } else if (importType === 'twitch') {
+                            const dataToImport = backup.sync || backup;
+                            if (dataToImport.settings) {
+                                const res = await browser.storage.sync.get('settings');
+                                const currentSettings = res.settings || {};
+                                // On ne merge que les clés liées à Twitch et l'ordre des widgets
+                                ['enableWidgetTwitch', 'twitchWorkerUrl', 'twitchChannels', 'twitchWidgetPosition', 'widgetOrder'].forEach(key => {
+                                    if (dataToImport.settings[key] !== undefined) currentSettings[key] = dataToImport.settings[key];
+                                });
+                                await browser.storage.sync.set({ settings: currentSettings });
+                            }
                         }
+
+                        // Synchroniser avec le worker
+                        await syncChannelsToWorker('all');
 
                         importStatus.textContent = "✅ Importation réussie ! Rechargement...";
                         importStatus.style.color = "#4caf50";
