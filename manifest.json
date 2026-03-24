@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "OmniMark",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "author": "Nicolas",
-  "description": "Votre page de démarrage personnalisée, synchronisée et dotée de raccourcis de recherche puissants.",
+  "description": "Votre Dashboard de Navigation : Favoris personnalisés, Streaming (Twitch/Kick) unifié et YouTube sans Shorts.",
   "chrome_url_overrides": {
     "newtab": "src/index.html"
   },
+  "chrome_settings_overrides" : {
+    "homepage": "src/index.html"
+   },
   "browser_specific_settings": {
     "gecko": {
       "id": "omnimark@nicolas.projets",
@@ -22,8 +25,19 @@
   ],
   "host_permissions": [
     "*://*.google.com/*",
+    "https://*.youtube.com/*",
     "https://cdn.simpleicons.org/*",
-    "https://img.logo.dev/*"
+    "https://img.logo.dev/*",
+    "*://*.workers.dev/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["src/js/content-youtube.js"],
+      "css": ["src/css/content-youtube.css"]
+    }
   ],
   "options_ui": {
     "page": "src/options.html",
