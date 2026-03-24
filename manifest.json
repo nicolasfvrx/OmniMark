@@ -7,9 +7,6 @@
   "chrome_url_overrides": {
     "newtab": "src/index.html"
   },
-  "chrome_settings_overrides" : {
-    "homepage": "src/index.html"
-   },
   "browser_specific_settings": {
     "gecko": {
       "id": "omnimark@nicolas.projets",
@@ -35,7 +32,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],
-      "js": ["src/js/content-youtube.js"],
+      "js": ["src/js/browser-api.js", "src/js/content-youtube.js"],
       "css": ["src/css/content-youtube.css"]
     }
   ],

@@ -17,4 +17,8 @@ if ($manifest.PSObject.Properties.Name -contains "browser_specific_settings") {
     $manifest.PSObject.Properties.Remove("browser_specific_settings")
 }
 
+if ($manifest.PSObject.Properties.Name -contains "chrome_settings_overrides") {
+    $manifest.PSObject.Properties.Remove("chrome_settings_overrides")
+}
+
 $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $distDir "manifest.json") -Encoding utf8
