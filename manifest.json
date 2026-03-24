@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OmniMark",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "author": "Nicolas",
   "description": "Votre Dashboard de Navigation : Favoris personnalisés, Streaming (Twitch/Kick) unifié et YouTube sans Shorts.",
   "chrome_url_overrides": {
@@ -31,13 +31,6 @@
     "*://*.workers.dev/*",
     "http://*/*",
     "https://*/*"
-  ],
-  "content_scripts": [
-    {
-      "matches": ["*://*.youtube.com/*"],
-      "js": ["src/js/content-youtube.js"],
-      "css": ["src/css/content-youtube.css"]
-    }
   ],
   "options_ui": {
     "page": "src/options.html",

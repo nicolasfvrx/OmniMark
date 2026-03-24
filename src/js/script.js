@@ -501,6 +501,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         twitchEl.style.display = 'block';
+        
+        // Fixer la hauteur actuelle pour éviter le saut pendant le rafraîchissement
+        if (livesGrid.offsetHeight > 0) {
+            livesGrid.style.minHeight = `${livesGrid.offsetHeight}px`;
+        }
+        
         livesGrid.replaceChildren();
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'twitch-loading';
@@ -515,6 +521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 emptyDiv.className = 'twitch-error';
                 emptyDiv.textContent = 'Aucun streamer configuré.';
                 livesGrid.appendChild(emptyDiv);
+                livesGrid.style.minHeight = '';
                 return;
             }
 
@@ -577,10 +584,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 noneFoundDiv.className = 'twitch-error';
                 noneFoundDiv.textContent = 'Aucun live en cours.';
                 livesGrid.appendChild(noneFoundDiv);
+                livesGrid.style.minHeight = '';
                 return;
             }
 
             livesGrid.replaceChildren();
+            livesGrid.style.minHeight = '';
             
             streams.forEach(stream => {
                 const card = document.createElement('a');
@@ -666,6 +675,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorDiv.className = 'twitch-error';
             errorDiv.textContent = `Erreur : ${e.message}`;
             livesGrid.appendChild(errorDiv);
+            livesGrid.style.minHeight = '';
         }
     }
 
@@ -717,6 +727,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         youtubeEl.style.display = 'block';
+        
+        // Fixer la hauteur actuelle pour éviter le saut pendant le rafraîchissement
+        if (videosGrid.offsetHeight > 0) {
+            videosGrid.style.minHeight = `${videosGrid.offsetHeight}px`;
+        }
+        
         videosGrid.replaceChildren();
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'youtube-loading';
@@ -740,6 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 emptyDiv.className = 'youtube-error';
                 emptyDiv.textContent = 'Aucune chaîne configurée.';
                 videosGrid.appendChild(emptyDiv);
+                videosGrid.style.minHeight = '';
                 return;
             }
 
@@ -777,10 +794,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 noneFoundDiv.className = 'youtube-error';
                 noneFoundDiv.textContent = 'Aucune nouvelle vidéo trouvée.';
                 videosGrid.appendChild(noneFoundDiv);
+                videosGrid.style.minHeight = '';
                 return;
             }
 
             videosGrid.replaceChildren();
+            videosGrid.style.minHeight = '';
             
             videos.forEach(video => {
                 const card = document.createElement('div');
@@ -860,6 +879,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorDiv.className = 'youtube-error';
             errorDiv.textContent = `Impossible de charger les vidéos : ${e.message}`;
             videosGrid.appendChild(errorDiv);
+            videosGrid.style.minHeight = '';
         }
     }
 

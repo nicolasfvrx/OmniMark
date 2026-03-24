@@ -362,9 +362,10 @@ header {
     grid-auto-columns: 180px;
     gap: 12px;
     overflow-x: auto;
-    padding-bottom: 6px; /* Juste assez pour la scrollbar */
+    padding-bottom: 15px; /* Plus d'espace entre les vidéos et la scrollbar */
     scrollbar-width: thin;
     scrollbar-color: var(--secondary-color) transparent;
+    min-height: 180px; /* Évite l'effondrement au chargement */
 }
 
 .youtube-grid::-webkit-scrollbar {
@@ -461,20 +462,23 @@ header {
     opacity: 0.8;
 }
 
-.youtube-error {
+.youtube-error, .youtube-loading {
     grid-column: 1 / -1;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 20px;
-    color: #f44336;
     font-size: 14px;
+    min-height: 120px;
+}
+
+.youtube-error {
+    color: #f44336;
 }
 
 .youtube-loading {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 20px;
     color: var(--secondary-color);
-    font-size: 14px;
+    font-style: italic;
 }
 
 .youtube-list {
@@ -581,9 +585,10 @@ header {
     grid-auto-columns: 200px;
     gap: 12px;
     overflow-x: auto;
-    padding-bottom: 6px;
+    padding-bottom: 15px; /* Plus d'espace entre les streams et la scrollbar */
     scrollbar-width: thin;
     scrollbar-color: #9146ff transparent;
+    min-height: 200px; /* Évite l'effondrement au chargement */
 }
 
 .twitch-grid::-webkit-scrollbar {
@@ -745,8 +750,15 @@ header {
 
 .twitch-error, .twitch-loading {
     grid-column: 1 / -1;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 20px;
-    color: #888;
+    color: #9146ff;
     font-size: 14px;
+    min-height: 120px;
+}
+
+.twitch-loading {
+    font-style: italic;
 }

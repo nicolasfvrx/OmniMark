@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.2] - 2026-03-24
+
+### FR:
+#### 🎨 UI & Design
+- **Stabilité du Widget** : La taille des widgets YouTube et Twitch ne change plus lors du rafraîchissement des données grâce à une gestion dynamique de la hauteur minimale.
+- **Amélioration du défilement** : Augmentation de l'espace entre les vidéos/streams et la barre de défilement horizontale pour un meilleur confort visuel.
+
+---
+
+### EN:
+#### 🎨 UI & Design
+- **Widget Stability**: YouTube and Twitch widget sizes no longer jump during data refresh thanks to dynamic minimum height management.
+- **Scrolling Improvement**: Increased space between videos/streams and the horizontal scrollbar for better visual comfort.
+
+---
+
+## [2.0.1] - 2026-03-24
+
+### FR:
+#### 📺 Améliorations YouTube
+- **Suppression du bouton d'ajout** : Retrait du bouton "Ajouter à OmniMark" sur les pages de chaînes YouTube pour épurer l'interface du site original.
+
+#### ☁️ Optimisations Cloudflare Worker
+- **Support des Queues** : Intégration de Cloudflare Queues pour traiter un nombre illimité de chaînes (YouTube et Twitch) sans dépasser les limites de sous-requêtes.
+- **Cache Intelligent** : Nouveau système de cache composite (`cache_id`) permettant de suivre un même streamer sur plusieurs plateformes (Twitch + Kick) simultanément sans conflit.
+- **Nettoyage Automatique** : Suppression automatique des streams "zombies" (hors-ligne depuis plus de 10 minutes) pour une précision accrue.
+- **Performance YouTube** : Augmentation de la profondeur d'analyse RSS (10 vidéos) et mise en cache du statut des Shorts pour réduire la charge serveur.
+
+#### 🛠️ Interface d'Administration
+- **Monitoring du Cache** : Visualisation en temps réel du contenu du cache (vidéos et streams actifs) directement sur la page `/admin`.
+- **Gestion des Chaînes** : Affichage détaillé des listes de chaînes suivies par plateforme pour un meilleur diagnostic.
+
+#### 🐞 Correctifs & Robustesse
+- **Gestion des Doublons** : Refonte de la logique de fusion (`mergeCache`) pour éliminer radicalement les entrées en double dans le stockage KV.
+- **Traitement par Lots** : Implémentation du batching (par 100) pour les appels API Twitch, garantissant la stabilité pour les gros comptes.
+
+---
+
+### EN:
+#### 📺 YouTube Improvements
+- **Add Button Removal**: Removed the "Add to OmniMark" button on YouTube channel pages to keep the original site interface clean.
+
+#### ☁️ Cloudflare Worker Optimizations
+- **Queue Support**: Integrated Cloudflare Queues to process an unlimited number of channels (YouTube and Twitch) without hitting sub-request limits.
+- **Smart Cache**: New composite cache system (`cache_id`) allowing the tracking of the same streamer on multiple platforms (Twitch + Kick) simultaneously without conflicts.
+- **Automatic Cleanup**: Automatic removal of "zombie" streams (offline for more than 10 minutes) for increased accuracy.
+- **YouTube Performance**: Increased RSS analysis depth (10 videos) and Short status caching to reduce server load.
+
+#### 🛠️ Administration Interface
+- **Cache Monitoring**: Real-time visualization of cache content (active videos and streams) directly on the `/admin` page.
+- **Channel Management**: Detailed display of followed channel lists per platform for better diagnostics.
+
+#### 🐞 Bug Fixes & Robustness
+- **Duplicate Handling**: Overhauled merge logic (`mergeCache`) to radically eliminate duplicate entries in KV storage.
+- **Batch Processing**: Implemented batching (per 100) for Twitch API calls, ensuring stability for large accounts.
+
+---
+
 ## [2.0.0] - 2026-03-24
 
 ### FR:
