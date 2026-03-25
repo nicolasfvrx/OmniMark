@@ -251,6 +251,12 @@
                 <label for="link-icon-value">Valeur de l'icône (Emoji, slug, domaine ou URL)</label>
                 <input type="text" id="link-icon-value" placeholder="⭐, github, google.com ou https://...">
                 
+                <label for="link-opening-mode">Ouverture du lien</label>
+                <select id="link-opening-mode">
+                    <option value="same" selected>Dans la même page</option>
+                    <option value="new">Dans une nouvelle page</option>
+                </select>
+
                 <button id="add-link">Ajouter le lien</button>
             </div>
 
@@ -275,6 +281,15 @@
             </div>
 
             <div class="category-list">
+                <h3>Paramètres des Raccourcis</h3>
+                <div style="margin-bottom: 20px;">
+                    <label for="link-opening-mode-bookmarks">Ouverture des raccourcis</label>
+                    <select id="link-opening-mode-bookmarks">
+                        <option value="same" selected>Dans la même page</option>
+                        <option value="new">Dans une nouvelle page</option>
+                    </select>
+                </div>
+
                 <h3>Raccourcis Actuels</h3>
                 <div id="search-engines-list"></div>
             </div>
@@ -294,6 +309,10 @@
                 <div style="display: flex; gap: 10px;">
                     <input type="password" id="worker-api-key" placeholder="Votre clé secrète" style="flex: 1; margin-bottom: 0;">
                     <button id="test-worker-btn" style="width: auto; padding: 0 15px; height: 38px;">Tester la connexion</button>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button id="sync-all-channels-btn" style="width: 100%; background: #4caf50; font-weight: bold;">Synchroniser les listes (YouTube & Twitch/Kick)</button>
+                    <div id="sync-status-msg" style="font-size: 12px; margin-top: 5px; min-height: 15px; text-align: center;"></div>
                 </div>
                 <div id="worker-status-msg" style="font-size: 12px; margin-top: 5px; min-height: 15px;"></div>
                 <div id="worker-admin-link" style="display: none; margin-top: 10px; font-size: 13px;">
@@ -738,7 +757,7 @@ export default {
                     </label>
                     <span style="color: var(--primary-color); font-size: 14px;">Afficher le statut FiveM</span>
                 </div>
-                
+
                 <p style="color: var(--secondary-color); font-size: 12px; margin-top: 10px;">
                     Ces modules s'affichent dans la barre d'état en bas de page.
                 </p>
@@ -761,7 +780,10 @@ export default {
                 </div>
                 
                 <div id="youtube-config" style="display: none;">
-                    <label>Chaînes YouTube suivies</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="margin-bottom: 0;">Chaînes YouTube suivies</label>
+                        <button id="sync-youtube-btn" style="font-size: 11px; padding: 4px 8px; background: rgba(244, 67, 54, 0.1); border: 1px solid #f44336; color: #f44336; width: auto; height: auto;">Synchroniser YouTube</button>
+                    </div>
                     <div id="youtube-channels-list" class="youtube-list">
                         <div class="youtube-list-empty">Aucune chaîne configurée.</div>
                     </div>
@@ -787,11 +809,12 @@ export default {
                         </div>
                     </div>
 
-                    <label for="youtube-position">Position du widget</label>
-                    <select id="youtube-position" style="margin-bottom: 15px;">
-                        <option value="bottom" selected>Bas (après les favoris)</option>
-                        <option value="top">Haut (avant les favoris)</option>
+                    <label for="youtube-opening-mode" style="margin-top: 15px;">Ouverture des vidéos</label>
+                    <select id="link-opening-mode-youtube" style="margin-bottom: 15px;">
+                        <option value="same" selected>Dans la même page</option>
+                        <option value="new">Dans une nouvelle page</option>
                     </select>
+
 
                     <div style="margin-top: 10px;">
                         <button id="clear-watched-videos" class="delete-btn" style="margin-left: 0; padding: 5px 10px; font-size: 11px;">
@@ -821,7 +844,10 @@ export default {
                 </div>
 
                 <div id="twitch-config" style="display: none;">
-                    <label>Streamers suivis</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="margin-bottom: 0;">Streamers suivis</label>
+                        <button id="sync-twitch-btn" style="font-size: 11px; padding: 4px 8px; background: rgba(145, 70, 255, 0.1); border: 1px solid #9146ff; color: #a970ff; width: auto; height: auto;">Synchroniser Streams</button>
+                    </div>
                     <div id="twitch-channels-list" class="youtube-list">
                         <div class="youtube-list-empty">Aucun streamer configuré.</div>
                     </div>
@@ -837,11 +863,12 @@ export default {
                         <button id="cancel-twitch-edit-btn" style="width: auto; padding: 0 15px; height: 32px; font-size: 12px; background: #666; display: none;">Annuler</button>
                     </div>
 
-                    <label for="twitch-position">Position du widget</label>
-                    <select id="twitch-position" style="margin-bottom: 15px;">
-                        <option value="bottom" selected>Bas (après les favoris)</option>
-                        <option value="top">Haut (avant les favoris)</option>
+                    <label for="streams-opening-mode" style="margin-top: 15px;">Ouverture des lives</label>
+                    <select id="link-opening-mode-streams" style="margin-bottom: 15px;">
+                        <option value="same" selected>Dans la même page</option>
+                        <option value="new">Dans une nouvelle page</option>
                     </select>
+
                 </div>
 
                 <div style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">

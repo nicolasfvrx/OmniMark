@@ -1,8 +1,11 @@
 
 
+// Polyfill pour assurer la compatibilité Chrome/Firefox
+if (typeof browser === "undefined") {
+    var browser = chrome;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    // Polyfill pour browser vs chrome
-    const browser = window.browser || window.chrome;
     const grid = document.getElementById('bookmark-grid');
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
@@ -44,6 +47,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const result = await browser.storage.sync.get(['searchEngines', 'settings']);
         searchEngines = result.searchEngines || defaultEngines;
         settings = result.settings || {};
+        
+        // Ordre par défaut si absent
+        if (!settings.widgetOrder) {
+            settings.widgetOrder = ['twitch-widget', 'youtube-widget', 'bookmark-grid'];
+        }
     }
 
     async function getFavicon(url) {
@@ -112,6 +120,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const p = document.createElement('p');
                     const a = document.createElement('a');
                     a.href = link.url;
+                    if (link.openingMode === 'new' || (!link.openingMode && settings.linkOpeningModeBookmarks === 'new')) {
+                        a.target = '_blank';
+                    } else {
+                        a.target = '_self';
+                    }
                     
                     const iconContainer = document.createElement('span');
                     iconContainer.className = 'link-icon';
@@ -205,6 +218,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     : engine.url + encodeURIComponent(searchTerm);
                 
                 a.href = searchUrl;
+                if (settings.linkOpeningModeBookmarks === 'new') {
+                    a.target = '_blank';
+                }
                 
                 const iconSpan = document.createElement('span');
                 iconSpan.className = 'link-icon';
@@ -246,6 +262,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 for (const link of filtered) {
                     const a = document.createElement('a');
                     a.href = link.url;
+                    if (link.openingMode === 'new' || (!link.openingMode && settings.linkOpeningModeBookmarks === 'new')) {
+                        a.target = '_blank';
+                    } else {
+                        a.target = '_self';
+                    }
                     
                     const iconSpan = document.createElement('span');
                     iconSpan.className = 'link-icon';
@@ -309,7 +330,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.key === 'Enter') {
                 const firstResult = searchResults.querySelector('a');
                 if (firstResult) {
-                    window.location.href = firstResult.href;
+                    if (firstResult.target === '_blank') {
+                        window.open(firstResult.href, '_blank');
+                    } else {
+                        window.location.href = firstResult.href;
+                    }
                 }
             }
         });
@@ -481,25 +506,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Positionnement du widget
-        // Si un ordre personnalisé existe, on ne touche plus aux positions top/bottom individuelles
-        if (!settings.widgetOrder) {
-            if (settings.twitchWidgetPosition === 'top') {
-                twitchEl.classList.add('pos-top');
-                twitchEl.classList.remove('pos-bottom');
-                grid.insertAdjacentElement('beforebegin', twitchEl);
-            } else {
-                twitchEl.classList.add('pos-bottom');
-                twitchEl.classList.remove('pos-top');
-                const footer = document.getElementById('status-bar');
-                if (footer) {
-                    footer.insertAdjacentElement('beforebegin', twitchEl);
-                } else {
-                    grid.insertAdjacentElement('afterend', twitchEl);
-                }
-            }
-        }
-
         twitchEl.style.display = 'block';
         
         // Fixer la hauteur actuelle pour éviter le saut pendant le rafraîchissement
@@ -600,7 +606,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const hasTwitch = stream.platforms.includes('twitch');
                 const baseUrl = hasTwitch ? 'https://www.twitch.tv/' : 'https://kick.com/';
                 card.href = `${baseUrl}${stream.user_login}`;
-                card.target = '_blank';
+                if (settings.linkOpeningModeStreams === 'new') {
+                    card.target = '_blank';
+                } else {
+                    card.target = '_self';
+                }
                 
                 const thumbContainer = document.createElement('div');
                 thumbContainer.className = 'twitch-thumbnail-container';
@@ -707,25 +717,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Positionnement du widget (bottom par défaut)
-        // Si un ordre personnalisé existe, on ne touche plus aux positions top/bottom individuelles
-        if (!settings.widgetOrder) {
-            if (settings.youtubeWidgetPosition === 'top') {
-                youtubeEl.classList.add('pos-top');
-                youtubeEl.classList.remove('pos-bottom');
-                grid.insertAdjacentElement('beforebegin', youtubeEl);
-            } else {
-                youtubeEl.classList.add('pos-bottom');
-                youtubeEl.classList.remove('pos-top');
-                const footer = document.getElementById('status-bar');
-                if (footer) {
-                    footer.insertAdjacentElement('beforebegin', youtubeEl);
-                } else {
-                    grid.insertAdjacentElement('afterend', youtubeEl);
-                }
-            }
-        }
-
         youtubeEl.style.display = 'block';
         
         // Fixer la hauteur actuelle pour éviter le saut pendant le rafraîchissement
@@ -807,7 +798,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 const link = document.createElement('a');
                 link.href = video.link;
-                link.target = '_blank';
+                if (settings.linkOpeningModeYoutube === 'new') {
+                    link.target = '_blank';
+                } else {
+                    link.target = '_self';
+                }
                 link.style.textDecoration = 'none';
                 link.style.color = 'inherit';
 

@@ -1,36 +1,34 @@
 {
   "manifest_version": 3,
   "name": "OmniMark",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "author": "Nicolas",
   "description": "Votre Dashboard de Navigation : Favoris personnalisés, Streaming (Twitch/Kick) unifié et YouTube sans Shorts.",
   "chrome_url_overrides": {
     "newtab": "src/index.html"
   },
-  "chrome_settings_overrides" : {
-    "homepage": "src/index.html"
-   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "omnimark@nicolas.projets",
-      "data_collection_permissions": {
-        "required": ["bookmarksInfo", "websiteContent"],
-        "optional": []
-      }
+      "id": "omnimark@nicolas.projets"
     }
+  },
+  "action": {
+    "default_title": "OmniMark"
   },
   "permissions": [
     "storage",
     "bookmarks"
   ],
   "host_permissions": [
-    "*://*.google.com/*",
+    "https://www.google.com/s2/favicons*",
     "https://*.youtube.com/*",
+    "https://api.twitch.tv/helix/*",
+    "https://id.twitch.tv/oauth2/*",
+    "https://kick.com/api/*",
+    "https://*.workers.dev/*",
     "https://cdn.simpleicons.org/*",
     "https://img.logo.dev/*",
-    "*://*.workers.dev/*",
-    "http://*/*",
-    "https://*/*"
+    "https://status.cfx.re/api/*"
   ],
   "options_ui": {
     "page": "src/options.html",

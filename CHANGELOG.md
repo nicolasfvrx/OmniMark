@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.3] - 2026-03-26
+
+### FR:
+#### 🚀 Nouvelles fonctionnalités
+- **Ouverture des liens à la carte** :
+    - **Favoris** : Choix du mode d'ouverture (**Même page** ou **Nouvelle page**) individuellement pour chaque favori.
+    - **YouTube & Streams** : Options globales dédiées dans les onglets respectifs.
+    - **Raccourcis de recherche** : Nouvelle option dans l'onglet "Recherche" pour le comportement par défaut des résultats.
+- **Synchronisation manuelle** : Ajout de boutons de synchronisation dans les onglets **Service**, **YouTube** et **Twitch** pour forcer l'envoi des données vers le Cloudflare Worker.
+
+#### 🛠️ Améliorations & Sécurité
+- **Sécurité renforcée** : Suppression de la permission globale `*://*/*` au profit d'une liste restrictive de domaines spécifiques.
+- **Nettoyage de l'interface** : Retrait des anciennes options de positionnement ("Haut" / "Bas") devenues obsolètes.
+- **Expérience Utilisateur** : La touche "Entrée" dans la barre de recherche respecte désormais le mode d'ouverture configuré.
+
+---
+
+### EN:
+#### 🚀 New Features
+- **Custom Link Opening**:
+    - **Bookmarks**: Choose opening mode (**Same page** or **New page**) individually for each bookmark.
+    - **YouTube & Streams**: Dedicated global options in their respective tabs.
+    - **Search Shortcuts**: New option in the "Search" tab for default result behavior.
+- **Manual Synchronization**: Added sync buttons in **Service**, **YouTube**, and **Twitch** tabs to force data upload to Cloudflare Worker.
+
+#### 🛠️ Improvements & Security
+- **Enhanced Security**: Removed global `*://*/*` permission in favor of a restrictive list of specific domains.
+- **UI Cleanup**: Removed obsolete positioning options ("Top" / "Bottom").
+- **User Experience**: "Enter" key in the search bar now respects the configured opening mode.
+
+---
+
 ## [2.0.2] - 2026-03-24
 
 ### FR:
