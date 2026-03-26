@@ -198,6 +198,21 @@ header {
     margin-right: 15px;
 }
 
+#footer-version.update-available {
+    color: #ff9800;
+    font-weight: bold;
+}
+
+#footer-version.update-available::after {
+    content: " (MAJ !)";
+    margin-left: 5px;
+    font-size: 10px;
+    background: #ff9800;
+    color: black;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
 #status-bar {
     position: fixed;
     bottom: 0;

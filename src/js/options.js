@@ -5,6 +5,66 @@ if (typeof browser === "undefined") {
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('OmniMark: Options page loaded');
+
+    // Affichage de la version et gestion des mises à jour
+    async function updateVersionDisplay() {
+        const versionEl = document.getElementById('options-version');
+        if (!versionEl) return;
+
+        const manifest = browser.runtime.getManifest();
+        const currentVersion = manifest.version;
+        versionEl.textContent = `v${currentVersion}`;
+
+        // On permet de cliquer sur la version pour aller sur les releases
+        versionEl.onclick = () => {
+            window.open("https://addons.mozilla.org/en-US/firefox/addon/omnimark/", "_blank");
+        };
+
+        try {
+            // Affichage immédiat si on a déjà l'info en cache
+            const cache = await browser.storage.local.get(['remoteVersion']);
+            if (cache.remoteVersion && isNewerVersion(cache.remoteVersion, currentVersion)) {
+                versionEl.classList.add('update-available');
+                versionEl.title = `Nouvelle version disponible : v${cache.remoteVersion}`;
+            }
+
+            // Utilisation de la nouvelle API personnalisée pour la vérification de mise à jour
+            const response = await fetch("https://addons-versions.norfair.workers.dev/?id=omnimark");
+            if (response.ok) {
+                const result = await response.json();
+                const remoteVersion = result.current_version;
+
+                if (remoteVersion && isNewerVersion(remoteVersion, currentVersion)) {
+                    versionEl.classList.add('update-available');
+                    versionEl.title = `Nouvelle version disponible : v${remoteVersion}`;
+                    await browser.storage.local.set({ 
+                        remoteVersion: remoteVersion,
+                        lastUpdateCheck: Date.now()
+                    });
+                } else {
+                    versionEl.classList.remove('update-available');
+                    await browser.storage.local.remove('remoteVersion');
+                    await browser.storage.local.set({ lastUpdateCheck: Date.now() });
+                }
+            }
+        } catch (e) {
+            // Silencieux si l'API échoue
+        }
+    }
+
+    function isNewerVersion(remote, local) {
+        if (!remote || !local) return false;
+        const r = remote.split('.').map(Number);
+        const l = local.split('.').map(Number);
+        for (let i = 0; i < 3; i++) {
+            if ((r[i] || 0) > (l[i] || 0)) return true;
+            if ((r[i] || 0) < (l[i] || 0)) return false;
+        }
+        return false;
+    }
+
+    updateVersionDisplay();
+
     const dataList = document.getElementById('data-list');
     const catSelect = document.getElementById('link-cat-select');
     const addCatBtn = document.getElementById('add-cat');

@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     ];
 
+
     async function loadSearchEngines() {
         const result = await browser.storage.sync.get(['searchEngines', 'settings']);
         searchEngines = result.searchEngines || defaultEngines;
@@ -185,6 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             grid.appendChild(colDiv);
         }
     }
+
 
     // Logique de recherche
     if (searchInput) {
@@ -377,102 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setInterval(updateDateTime, 1000);
 
     // --- Modules de statut ---
-
-    async function updateFiveMStatus() {
-        const fivemEl = document.getElementById('fivem-status');
-        const tooltip = document.getElementById('fivem-tooltip');
-        if (!settings.enableStatusFiveM || !fivemEl) {
-            if (fivemEl) fivemEl.style.display = 'none';
-            return;
-        }
-
-        fivemEl.style.display = 'flex';
-        const valEl = fivemEl.querySelector('.status-value');
-
-        try {
-            const response = await fetch('https://status.cfx.re/api/v2/summary.json');
-            const data = await response.json();
-            
-            const status = data.status.indicator; // none, minor, major, critical
-            valEl.textContent = data.status.description === 'All Systems Operational' ? 'Opérationnel' : data.status.description;
-            
-            if (status === 'none') valEl.className = 'status-value status-up';
-            else if (status === 'minor') valEl.className = 'status-value status-warn';
-            else valEl.className = 'status-value status-down';
-
-            tooltip.textContent = '';
-            
-            // Définition des catégories et de leurs composants respectifs (mots-clés pour le match)
-            const categories = [
-                {
-                    name: 'Game Services',
-                    keywords: ['CNL', 'Policy', 'Keymaster']
-                },
-                {
-                    name: 'Games',
-                    keywords: ['FiveM', 'RedM', 'FXServer', 'Platform Server']
-                },
-                {
-                    name: 'Web Services',
-                    keywords: ['IDMS', 'Runtime', 'Portal']
-                }
-            ];
-
-            let totalFound = 0;
-
-            categories.forEach(cat => {
-                // Trouver les composants qui matchent cette catégorie
-                const catComponents = data.components.filter(comp => 
-                    cat.keywords.some(keyword => comp.name.toLowerCase().includes(keyword.toLowerCase()))
-                );
-
-                if (catComponents.length > 0) {
-                    totalFound += catComponents.length;
-                    
-                    // Ajouter l'en-tête de catégorie
-                    const header = document.createElement('div');
-                    header.className = 'tooltip-category';
-                    header.textContent = cat.name;
-                    tooltip.appendChild(header);
-
-                    catComponents.forEach(comp => {
-                        const item = document.createElement('div');
-                        item.className = 'tooltip-item';
-                        let statusClass = 'status-up';
-                        if (comp.status === 'partial_outage' || comp.status === 'degraded_performance') statusClass = 'status-warn';
-                        else if (comp.status === 'major_outage' || comp.status === 'critical_outage') statusClass = 'status-down';
-                        
-                        // Nettoyer le nom pour l'affichage
-                        let displayName = comp.name.replace(/CitizenFX |Cfx.re /g, '');
-                        if (displayName.includes('Platform Server')) displayName = 'FXServer';
-                        
-                        const nameSpan = document.createElement('span');
-                        nameSpan.textContent = displayName;
-                        const statusSpan = document.createElement('span');
-                        statusSpan.className = statusClass;
-                        statusSpan.textContent = comp.status.replace(/_/g, ' ');
-                        item.appendChild(nameSpan);
-                        item.appendChild(statusSpan);
-                        
-                        tooltip.appendChild(item);
-                    });
-                }
-            });
-
-            if (totalFound === 0) {
-                tooltip.textContent = 'Aucun détail disponible pour le moment.';
-            }
-        } catch (e) {
-            valEl.textContent = 'Erreur';
-            valEl.className = 'status-value status-down';
-            tooltip.textContent = 'Impossible de récupérer les détails.';
-        }
-    }
-
-    if (settings.enableStatusFiveM) {
-        updateFiveMStatus();
-        setInterval(updateFiveMStatus, 60000 * 5);
-    }
+    // Le module FiveM est désactivé car l'API officielle ne répond plus.
 
     // --- Widget Twitch ---
 

@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.5] - 2026-03-26
+
+### FR:
+#### 🛠️ Correctifs & Maintenance
+- **Désactivation FiveM** : Désactivation complète du module de statut FiveM suite à l'indisponibilité de leur API. L'affichage a été retiré de la page d'accueil et l'option est verrouillée dans les paramètres avec un message explicatif.
+
+---
+
+### EN:
+#### 🛠️ Bug Fixes & Maintenance
+- **FiveM Disablement**: Complete disablement of the FiveM status module following the unavailability of their API. The display has been removed from the home page and the option is locked in the settings with an explanatory message.
+
+---
+
+## [2.0.4] - 2026-03-26
+
+### FR:
+#### 🚀 Nouvelles fonctionnalités & Optimisations
+- **Optimisation Cloudflare Worker (Plan Gratuit)** : 
+    - Réduction drastique des requêtes KV via une mise en cache intelligente des lectures (config, listes, cache) pour économiser les quotas.
+    - Fusion des mises à jour Twitch et Kick en une seule opération d'écriture, économisant des centaines d'opérations par jour.
+    - Optimisation de la détection des YouTube Shorts via un cache local persistant.
+- **Gestion des flux (Multi-Cron)** : Séparation des processus de rafraîchissement pour permettre des fréquences différentes (Lives toutes les 3 min, Vidéos toutes les 10 min).
+- **Système de mise à jour intelligent** : 
+    - Migration vers une API dédiée (`addons-versions.norfair.workers.dev`) pour une vérification fiable des versions.
+    - Indicateur visuel ("MAJ !") dans la page des options lorsqu'une nouvelle version est disponible.
+- **Interface Utilisateur** : Nettoyage de la page d'accueil (`index.html`) et centralisation des informations de version dans les options pour une expérience plus épurée.
+
+---
+
+### EN:
+#### 🚀 New Features & Optimizations
+- **Cloudflare Worker Optimization (Free Tier)**:
+    - Radical KV request reduction via smart read caching (config, lists, cache) to preserve quotas.
+    - Merged Twitch and Kick updates into a single write operation, saving hundreds of daily operations.
+    - Optimized YouTube Shorts detection with persistent local caching.
+- **Stream Management (Multi-Cron)**: Separated refresh processes to allow different frequencies (Streams every 3 min, Videos every 10 min).
+- **Smart Update System**:
+    - Migration to a dedicated API (`addons-versions.norfair.workers.dev`) for reliable version checking.
+    - Visual indicator ("UPDATE!") in the options page when a new version is available.
+    - Direct access to GitHub releases by clicking the version number.
+- **User Interface**: Cleaned up the home page (`index.html`) and centralized version info in options for a sleeker experience.
+
+---
+
 ## [2.0.3] - 2026-03-26
 
 ### FR:

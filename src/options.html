@@ -331,7 +331,7 @@
                         <li>Créez un Worker nommé <code>omnimark-worker</code>.</li>
                         <li><strong>KV :</strong> Créez un namespace <code>OMNIMARK_KV</code> et liez-le au worker (Variable = <code>OMNIMARK_KV</code>).</li>
                         <li><strong>Queues (Optionnel) :</strong> Créez une Queue <code>omnimark-queue</code> et liez-la au worker (Variable = <code>OMNIMARK_QUEUE</code>). Recommandé si vous suivez plus de 40 chaînes.</li>
-                        <li><strong>Déclencheurs :</strong> Ajoutez un <strong>Cron Trigger</strong> toutes les 5 minutes (<code>*/5 * * * *</code>).</li>
+                        <li><strong>Déclencheurs :</strong> Ajoutez deux <strong>Cron Triggers</strong> : <code>*/3 * * * *</code> (lives) et <code>*/10 * * * *</code> (vidéos).</li>
                         <li><strong>Variables d'environnement :</strong> Ajoutez uniquement <code>API_KEY</code> (votre clé secrète ci-dessus). Les autres clés se configurent sur la page <code>/admin</code> du worker.</li>
                     </ol>
                 </div>
@@ -343,7 +343,7 @@
                     </div>
                     <pre id="unified-worker-code-display" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 6px; border: 1px solid var(--secondary-color); color: #eee; font-family: 'Consolas', monospace; font-size: 12px; max-height: 500px; overflow: auto; white-space: pre-wrap;">
 const getConfig = async (env, key) => {
-  const val = await env.OMNIMARK_KV?.get(key);
+  const val = await env.OMNIMARK_KV?.get(key, { cacheTtl: 3600 });
   return val || env[key];
 };
 
@@ -399,7 +399,7 @@ const processYoutubeBatch = async (env, ctx, channels) => {
         const vTitle = entry.match(/&lt;title&gt;([^&lt;]+)&lt;\/title&gt;/)?.[1];
         if (!vId || vTitle?.toLowerCase().includes('shorts')) continue;
         const cacheKey = `is_short:${vId}`;
-        let isShort = await env.OMNIMARK_KV?.get(cacheKey);
+        let isShort = await env.OMNIMARK_KV?.get(cacheKey, { cacheTtl: 86400 });
         if (isShort === null) {
           const check = await fetch(`https://www.youtube.com/shorts/${vId}`, { method: 'HEAD', redirect: 'manual', headers: { "User-Agent": UA } });
           isShort = check.status === 200 ? 'true' : 'false';
@@ -419,11 +419,10 @@ const processYoutubeBatch = async (env, ctx, channels) => {
   return results;
 };
 
-const refreshCache = async (env, ctx) => {
-  const twitchChannelsRaw = await env.OMNIMARK_KV?.get('CHANNELS_TWITCH');
+const refreshStreams = async (env, ctx) => {
+  const twitchChannelsRaw = await env.OMNIMARK_KV?.get('CHANNELS_TWITCH', { cacheTtl: 3600 });
   const twitchChannels = twitchChannelsRaw ? JSON.parse(twitchChannelsRaw) : [];
-  
-  // --- Twitch ---
+  let allStreams = [];
   const tId = await getConfig(env, 'TWITCH_CLIENT_ID');
   const tSec = await getConfig(env, 'TWITCH_CLIENT_SECRET');
   if (tId && tSec && twitchChannels.length > 0) {
@@ -445,29 +444,24 @@ const refreshCache = async (env, ctx) => {
             ...s, platform: 'twitch', cache_id: `twitch:${s.user_login.toLowerCase()}`,
             thumbnail_url: s.thumbnail_url.replace('{width}', '440').replace('{height}', '248') 
           }));
-          await mergeCache(env, 'CACHE_STREAMS', twitchStreams, 'cache_id');
+          allStreams.push(...twitchStreams);
         }
       } catch (e) {}
     }
-  } else if (twitchChannels.length > 0) {
-    await mergeCache(env, 'CACHE_STREAMS', [], 'cache_id');
   }
-
-  // --- Kick ---
   let kickNames = twitchChannels.filter(c => typeof c === 'object' && (c.platform === 'kick' || c.platform === 'both')).map(c => c.name);
   if (env.OMNIMARK_QUEUE && kickNames.length > 0) {
     for (let i = 0; i < kickNames.length; i += 10) {
       await env.OMNIMARK_QUEUE.send({ type: 'kick', names: kickNames.slice(i, i + 10) });
     }
   } else if (kickNames.length > 0) {
-    let kickStreams = [];
     for (const name of kickNames.slice(0, 25)) {
       try {
         const res = await fetch(`https://kick.com/api/v1/channels/${encodeURIComponent(name.toLowerCase())}`, { headers: { "User-Agent": UA } });
         if (!res.ok) continue;
         const data = await res.json();
         if (data.livestream) {
-          kickStreams.push({ 
+          allStreams.push({ 
             user_login: name.toLowerCase(), user_name: data.user?.username || name, title: data.livestream.session_title, 
             game_name: (data.livestream.categories?.[0]?.name) || 'Kick', viewer_count: data.livestream.viewer_count, 
             thumbnail_url: data.livestream.thumbnail?.url || data.user?.profile_pic || '', platform: 'kick',
@@ -476,11 +470,14 @@ const refreshCache = async (env, ctx) => {
         }
       } catch (e) {}
     }
-    await mergeCache(env, 'CACHE_STREAMS', kickStreams, 'cache_id');
   }
+  if (allStreams.length > 0 || (!env.OMNIMARK_QUEUE && twitchChannels.length > 0)) {
+    await mergeCache(env, 'CACHE_STREAMS', allStreams, 'cache_id');
+  }
+};
 
-  // --- YouTube ---
-  const youtubeChannelsRaw = await env.OMNIMARK_KV?.get('CHANNELS_YOUTUBE');
+const refreshYoutube = async (env, ctx) => {
+  const youtubeChannelsRaw = await env.OMNIMARK_KV?.get('CHANNELS_YOUTUBE', { cacheTtl: 3600 });
   const youtubeChannels = youtubeChannelsRaw ? JSON.parse(youtubeChannelsRaw) : [];
   if (env.OMNIMARK_QUEUE && youtubeChannels.length > 0) {
     for (let i = 0; i < youtubeChannels.length; i += 5) {
@@ -490,6 +487,11 @@ const refreshCache = async (env, ctx) => {
     const results = await processYoutubeBatch(env, ctx, youtubeChannels.slice(0, 40));
     await mergeCache(env, 'CACHE_YOUTUBE', results);
   }
+};
+
+const refreshCache = async (env, ctx) => {
+  await refreshStreams(env, ctx);
+  await refreshYoutube(env, ctx);
 };
 
 export default {
@@ -525,13 +527,13 @@ export default {
       const tSec = isAuthorized ? (await getConfig(env, 'TWITCH_CLIENT_SECRET') || '') : '';
       const yKey = isAuthorized ? (await getConfig(env, 'YOUTUBE_API_KEY') || '') : '';
 
-      const ytRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CHANNELS_YOUTUBE')) : '[]';
-      const twRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CHANNELS_TWITCH')) : '[]';
+      const ytRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CHANNELS_YOUTUBE', { cacheTtl: 3600 })) : '[]';
+      const twRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CHANNELS_TWITCH', { cacheTtl: 3600 })) : '[]';
       const ytChannels = JSON.parse(ytRaw || '[]');
       const twChannels = JSON.parse(twRaw || '[]');
 
-      const ytCacheRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CACHE_YOUTUBE')) : '[]';
-      const stCacheRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CACHE_STREAMS')) : '[]';
+      const ytCacheRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CACHE_YOUTUBE', { cacheTtl: 60 })) : '[]';
+      const stCacheRaw = isAuthorized ? (await env.OMNIMARK_KV.get('CACHE_STREAMS', { cacheTtl: 60 })) : '[]';
       const ytCache = JSON.parse(ytCacheRaw || '[]');
       const stCache = JSON.parse(stCacheRaw || '[]');
 
@@ -680,7 +682,13 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    await refreshCache(env, ctx);
+    if (event.cron === "*/3 * * * *") {
+      await refreshStreams(env, ctx);
+    } else if (event.cron === "*/10 * * * *") {
+      await refreshYoutube(env, ctx);
+    } else {
+      await refreshCache(env, ctx);
+    }
   },
 
   async queue(batch, env, ctx) {
@@ -750,13 +758,16 @@ export default {
                 </div>
 
                 <h3>Modules de statut (Footer)</h3>
-                <div class="checkbox-group">
+                <div class="checkbox-group" style="opacity: 0.5; pointer-events: none;">
                     <label class="switch">
-                        <input type="checkbox" id="enable-status-fivem">
+                        <input type="checkbox" id="enable-status-fivem" disabled>
                         <span class="slider"></span>
                     </label>
-                    <span style="color: var(--primary-color); font-size: 14px;">Afficher le statut FiveM</span>
+                    <span style="color: var(--primary-color); font-size: 14px;">Afficher le statut FiveM (Désactivé)</span>
                 </div>
+                <p style="color: #ff4444; font-size: 11px; margin-top: -10px; margin-bottom: 10px;">
+                    Indisponible : La page de statut FiveM ne propose plus d'API compatible.
+                </p>
 
                 <p style="color: var(--secondary-color); font-size: 12px; margin-top: 10px;">
                     Ces modules s'affichent dans la barre d'état en bas de page.
@@ -941,7 +952,7 @@ export default {
 
 
         <div class="credits">
-            Design inspiré par le <a href="https://codepen.io/base0/pen/wvaLxPv" target="_blank">Codepen de Otto (base0)</a>
+            OmniMark <span id="options-version" style="cursor: pointer;" title="Vérifier les mises à jour">v2.0.5</span> | Design par <a href="https://codepen.io/base0/pen/wvaLxPv" target="_blank">Otto (base0)</a>
         </div>
     </div>
     <script src="js/options.js"></script>
